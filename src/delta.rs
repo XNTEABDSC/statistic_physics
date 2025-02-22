@@ -8,7 +8,6 @@ pub struct State<T>(T);
 pub struct Change<T>(T);
 
 impl<T> State<T> 
-    where T:Default+for<'b >std::ops::AddAssign<&'b T>+for<'b >std::ops::SubAssign<&'b T>
 {
     pub const fn spawn(v:T)->Self {
         Self(v)
@@ -16,9 +15,12 @@ impl<T> State<T>
     pub const fn v(&self)->&T {
         &self.0
     }
-    pub fn apply_change<'a>(&mut self,change:&'a mut Change<T>) 
+    pub fn apply_change<'a,T2>(&mut self,change:&'a mut Change<T2>)
+        
+        where T:for<'b >std::ops::AddAssign<&'b T2>,
+        T2:Default
     {
-        self.0+=&mem::replace::<T>(&mut change.0, T::default());
+        self.0 += &mem::replace::<T2>(&mut change.0, T2::default());
     }
 }
 impl<T> Change<T> 
@@ -41,9 +43,9 @@ impl<T> Change<T>
 impl<T> Delta<T> 
     where T:Default+for<'b >std::ops::AddAssign<&'b T>+for<'b >std::ops::SubAssign<&'b T>
 {
-    pub fn transfer(self,achange:&mut Change<T>,bchange:& mut Change<T>) {
-        achange.0-=&self.0;
-        bchange.0+=&self.0;
+    pub fn transfer(self,from:&mut Change<T>,to:& mut Change<T>) {
+        from.0-=&self.0;
+        to.0+=&self.0;
         
     }
 }
