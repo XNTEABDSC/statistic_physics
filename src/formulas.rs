@@ -1,10 +1,10 @@
 
 use cordic::sqrt;
-use fixed::traits::Fixed;
+//use wacky_bag::structures::delta::Delta;
 
-use crate::{
-    body::CircleObject, constants::NUMINV2, delta::{Change, Delta}, gas_cell::GasCell, matters::{Matters, MattersState}, num::Num, vec2_fix::{self, dist, Vec2Fix}
-};
+type Delta<T>=T;
+
+use crate::{constants::*, matters::{Matters, MattersState}, num::Num, vec2_fix::Vec2Fix};
 #[inline]
 pub fn mass_momentum_2_kenetic(momentum:Vec2Fix,mass:Num)->Num {
     if mass.is_zero(){return Num::ZERO;}
@@ -35,204 +35,51 @@ pub fn normal_cdf(x:Num)->Num {
 }
 
 
-pub fn gas_cell_spread_to_side_another(a:&MattersState,volume:Num,dir_vec:Vec2Fix,edge:Num,dt:Num)->Delta<Matters>{
-    let mass=a.mass();
-    let v_mean=a.v_mean();
-    let v_var_sq=a.v_var_sq();
-    let v_var=a.v_var();
 
-    let v_mean_on_dir=v_mean*dir_vec;
-
-    let factor=v_mean_on_dir/v_var;
+/// for time dt, for ['MattersState'] with `volume`, to calculate how much [`Matters`] will cross the edge with `edge_len` and `edge_dir_vec` 
+pub fn gas_cell_spread_to_side(a:&MattersState,volume:Num,edge_dir_vec:Vec2Fix,edge_len:Num,dt:Num)->Delta<Matters>{
+    let mass=a.mass;
+    let v_mean=a.v_mean;
+    let v_var_sq_1dir=a.v_var_sq_1dir;
+    let v_var_1dir=a.v_var_1dir;
+    let v_on_dir_mean=v_mean*edge_dir_vec;
     
-    let pass_normal_cdf=if v_var.is_zero() { Num::ONE }else{normal_cdf( factor)};
-    let pass_normal_pdf=if v_var.is_zero() { Num::ZERO }else{normal_pdf(factor)};
+    let mass_edge_volume_dt=mass*edge_len*dt/volume;
 
-    
-    let e_pass_v0=v_mean_on_dir*pass_normal_cdf+v_var*pass_normal_pdf;
-
-    let pass_mass=( e_pass_v0 )*mass*dt*edge/volume;
-
-    let pass_vector=v_mean+dir_vec*v_var*pass_normal_pdf;
-
-    let pass_momentum=pass_vector*pass_mass;
-
-    return todo!();
-}
-
-
-pub fn gas_cell_spread_to_side_copy(a:&MattersState,volume:Num,dir_vec:Vec2Fix,edge:Num,dt:Num)->Delta<Matters>{
-    let mass=a.mass();
-    let v_mean=a.v_mean();
-    let v_var_sq=a.v_var_sq();
-    let v_var=a.v_var();
-
-
-
-    let v_mean_on_dir=(v_mean*dir_vec);
-    let v_mean_on_dir_vec=dir_vec*v_mean_on_dir;
-    //let v_dir_vec=dir_vec.rotate90();
-    let v_mean_v_dir=v_mean-v_mean_on_dir_vec;
-
-    
-    let pass_normal_cdf=if false { Num::ONE }else{normal_cdf( v_mean_on_dir)};
-    let pass_normal_pdf=if false { Num::ZERO }else{normal_pdf(v_mean_on_dir)};
-
-    let e_pass_v0=v_mean_on_dir*pass_normal_cdf+v_var*pass_normal_pdf;
-    let e_pass_v1=v_mean_on_dir*v_mean_on_dir*pass_normal_cdf
-    +2*v_mean_on_dir*v_var*pass_normal_pdf
-    + v_var*v_var*(Num::ONE-pass_normal_cdf);
-    let e_pass_v2=
-    v_mean_on_dir*v_mean_on_dir*v_mean_on_dir*pass_normal_cdf
-    + 3*v_mean_on_dir*v_mean_on_dir*v_var*pass_normal_pdf
-    + 3*v_mean_on_dir*v_var*v_var* pass_normal_cdf
-    + v_var*v_var*v_var*pass_normal_pdf
-    ;
-
-
-    println!("cdf: {}, pdf: {}",pass_normal_cdf,pass_normal_pdf);
-
-    // E( max(pass,0) * p.m)
-    let pass_mass=( e_pass_v0 )*mass*dt*edge/volume;
-
-    // E( max(pass,0) * p.m*p.v*p.v*0.5)
-    let pass_energy=( e_pass_v2 )*mass*dt*edge/volume*NUMINV2;
-
-    let pass_momentum=
-        dir_vec*mass*dt*edge/volume*(
-            e_pass_v1
-        )+
-        v_mean_v_dir*( e_pass_v0 )*mass*dt*edge/volume;
-
-    return  Delta(Matters { mass: pass_mass, momentum: pass_momentum, energy: pass_energy });
-
-}
-
-
-
-pub fn gas_cell_spread_to_side(a:&MattersState,volume:Num,dir_vec:Vec2Fix,edge:Num,dt:Num)->Delta<Matters>{
-    let mass=a.mass();
-    let v_mean=a.v_mean();
-    let v_var_sq=a.v_var_sq();
-    let v_var=a.v_var();
-    let v_on_dir_mean=v_mean*dir_vec;
-    //let v_on_dir_var=v_var;
-    let mass_edge_volume_dt=mass*edge*dt/volume;
-
-    let (cdf,pdf)=if v_var.is_zero() {
-        (if v_on_dir_mean>0 {Num::ONE} else {Num::ZERO},Num::ZERO)
+    let (cdf,pdf)=if v_var_1dir.is_zero() {
+        ( if v_on_dir_mean>0 {Num::ONE} else {Num::ZERO} , Num::ZERO)
     }else{
-        let frac=v_on_dir_mean/v_var;
+        let frac=v_on_dir_mean/v_var_1dir;
         (normal_cdf(frac),normal_pdf(frac))
     };
     let v_on_dir_mean_p2=v_on_dir_mean*v_on_dir_mean;
 
 
-    // E[max(v_on_dir)]
-    let e_0=v_on_dir_mean*cdf+v_var*pdf;
-    let e_1=(v_on_dir_mean_p2+v_var_sq)*cdf+v_on_dir_mean*v_var*pdf;
-    let e_2=v_on_dir_mean*(v_on_dir_mean_p2+3*v_var_sq)*cdf+v_var*(v_on_dir_mean_p2+2*v_var_sq)*pdf;
+    // E[max(v_on_dir,0)]
+    let e_0=v_on_dir_mean*cdf+v_var_1dir*pdf;
+    let e_1=(v_on_dir_mean_p2+v_var_sq_1dir)*cdf+v_on_dir_mean*v_var_1dir*pdf;
+    let e_2=v_on_dir_mean*(v_on_dir_mean_p2+3*v_var_sq_1dir)*cdf+v_var_1dir*(v_on_dir_mean_p2+2*v_var_sq_1dir)*pdf;
 
     let pass_mass=mass_edge_volume_dt*e_0;
 
-    let v_on_dir_vec=dir_vec*v_on_dir_mean;
+    let v_on_dir_vec=edge_dir_vec*v_on_dir_mean;
     let v_v_dir_vec=v_mean-v_on_dir_vec;
 
     let pass_momentum=(
-        dir_vec*e_1
+        edge_dir_vec*e_1
         + v_v_dir_vec*e_0
     )*mass_edge_volume_dt;
 
     let pass_energy=(
-        e_2+v_var*e_0
+        e_2+v_var_1dir*e_0
     )* Num::FRAC_1_SQRT_2 *mass_edge_volume_dt>>1;
 
 
-    return Delta(Matters { mass: pass_mass, momentum: pass_momentum, energy: pass_energy });
+    return //Delta
+    (Matters { mass: pass_mass, momentum: pass_momentum, energy: pass_energy });
 
 }
-
-
-pub fn gas_cell_spread_to_side_old_0(a:&MattersState,volume:Num,dir_vec:Vec2Fix,edge:Num,dt:Num)->Delta<Matters>{
-    let mass=a.mass();
-    let v_mean=a.v_mean();
-    let v_var_sq=a.v_var_sq();
-    let v_var=a.v_var();
-    let pass_factor=dt/volume;
-    let edge_vec=dir_vec*edge;
-    let pass_mean=v_mean*edge_vec*pass_factor;
-    let pass_mean_sq=pass_mean*pass_mean;
-    let pass_mean_pow_3=pass_mean_sq*pass_mean;
-    let pass_var_sq=v_var_sq*pass_factor*pass_factor;
-    let pass_var=v_var*pass_factor;
-    let frac_pass_mean_pass_var=if pass_var.is_zero() {Num::ZERO} else {pass_mean/pass_var};
-
-    let pass_normal_cdf=if pass_var.is_zero() { Num::ONE }else{normal_cdf(frac_pass_mean_pass_var)};
-    let pass_normal_pdf=if pass_var.is_zero() { Num::ZERO }else{normal_pdf(frac_pass_mean_pass_var)};
-
-    println!("cdf: {}, pdf: {}",pass_normal_cdf,pass_normal_pdf);
-    
-    let e_pass=pass_mean*pass_normal_cdf+pass_var*pass_normal_pdf;
-
-    // E( max(pass,0) * p.m)
-    let pass_mass=( e_pass )*mass;
-
-    // E( max(pass,0) * p.m*p.v*p.v*0.5)
-    let pass_energy=(
-        pass_mean_pow_3*pass_normal_cdf
-        + 3*pass_mean_sq*pass_var*pass_normal_pdf
-        + 3*pass_mean*pass_var_sq * pass_normal_cdf
-        + pass_var_sq*pass_var*pass_normal_pdf
-    )*mass*NUMINV2;
-
-    let v_mean_on_dir=dir_vec*(v_mean*dir_vec);
-    //let v_dir_vec=dir_vec.rotate90();
-    let v_mean_v_dir=v_mean-v_mean_on_dir;
-
-    println!("v_mean_on_dir: {:?} , v_mean_v_dir: {:?}",v_mean_on_dir,v_mean_v_dir);
-    println!("add_test: {:?}",v_mean_on_dir+v_mean_v_dir);
-    println!("e_pass_v1: {:?} , e_pass_v0: {:?}",(
-         (pass_mean_sq)*pass_normal_cdf
-        + 2*pass_var*pass_mean*pass_normal_pdf
-        + pass_var_sq*(Num::ONE-pass_normal_cdf)
-    ),e_pass);
-
-    let pass_momentum=
-        (v_mean_on_dir*(
-            (pass_mean_sq)*pass_normal_cdf
-            + 2*pass_var*pass_mean*pass_normal_pdf
-            +pass_var_sq*(Num::ONE-pass_normal_cdf)
-        )
-        +(v_mean_v_dir*e_pass));
-
-    return  Delta(Matters { mass: pass_mass, momentum: pass_momentum, energy: pass_energy });
-
-}
-
-pub fn gas_cell_spread_to_side_bad(a:&GasCell,dirvec:Vec2Fix,dt:Num)->Delta<Matters>{
-    /* */
-    if a.matters.mass().is_zero(){return Delta::default();}
-    //if a.matters.mass.is_zero() || a.matters.mass.is_negative(){return Delta::default();}
-    //let mut res=Matters::default();
-    let mut per=(a.matters.v_mean()*dirvec)*dt/a.edge;
-    if per<Num::ZERO {per=Num::ZERO;}
-    if per>Num::ONE {per=Num::ONE;}
-    //res+=a.matters.take_matters_percent(per);
-    //res
-    let res1=a.matters.take_matters_percent(per);
-    let vel_var_sq=Num::sqrt(a.matters.v_var());
-    let per2_mean_vel=vel_var_sq*2;
-    let mut per2=per2_mean_vel*dt/a.edge;
-    if per2<Num::ZERO {per2=Num::ZERO;}
-    if per2>Num::ONE {per2=Num::ONE;}
-    let per2_mass=a.matters.mass()*per2;
-    let per2_momentum=dirvec*per2_mass*per2_mean_vel;
-    let per2_kenetic=a.matters.energy()*per2;
-    let mut res=res1;
-    res.0+=&Matters{mass:per2_mass,momentum:per2_momentum,energy:per2_kenetic};
-    res
-}
-
+/*
 pub fn gas_cell_spread(a:&GasCell,dt:Num,c:&mut Change<Matters>,n:&mut Change<Matters>,e:&mut Change<Matters>,s:&mut Change<Matters>,w:&mut Change<Matters>)->(){
     //let mut res=GasCellSpreadResult::default();
     let dme=gas_cell_spread_to_side(&a.matters,Num::ONE, Vec2Fix::new(Num::ONE, Num::ZERO),Num::ONE,dt);
@@ -243,31 +90,32 @@ pub fn gas_cell_spread(a:&GasCell,dt:Num,c:&mut Change<Matters>,n:&mut Change<Ma
     dmw.transfer(c, w);
     let dms=gas_cell_spread_to_side(&a.matters,Num::ONE, Vec2Fix::new(Num::ZERO, Num::NEG_ONE),Num::ONE,dt);
     dms.transfer(c, s);
-}
-
+} */
+ 
 //pub const interact_gas_cell_body_momentum_transfer:Num = ;
 
-pub fn interact_gas_cell_body(gc:&GasCell,b:&CircleObject,half_life_period_factor_over_2_over_len:Num)->Delta<Matters>{
-    let factor=-b.radius*half_life_period_factor_over_2_over_len;
-    let dmomentum=b.matters.momentum()-gc.matters.momentum();
+/// just a exist way
+pub fn interact_gas_cell_body(gc_m:MattersState,b_m:MattersState,b_radius:Num,half_life_period_factor_over_2_over_len:Num)->Delta<Matters>{
+    let factor=-b_radius*half_life_period_factor_over_2_over_len;
+    let dmomentum=b_m.momentum-gc_m.momentum;
     let dmomentum_fac=dmomentum*factor;
     let dmomentum_fac_kenetic=
-    mass_momentum_2_kenetic(dmomentum_fac, b.matters.mass())-mass_momentum_2_kenetic(-dmomentum_fac, gc.matters.mass());
-    let dinternal=b.matters.internal()-gc.matters.internal();
+    mass_momentum_2_kenetic(dmomentum_fac, b_m.mass)-mass_momentum_2_kenetic(-dmomentum_fac, gc_m.mass);
+    let dinternal=b_m.internal-gc_m.internal;
     let dinternal_fac=dinternal*factor;
-    Delta(Matters{
+    //Delta
+    (Matters{
         mass:Num::ZERO,
         momentum:dmomentum_fac,
         energy:dmomentum_fac_kenetic+dinternal_fac
     })
 }
 
-
 pub fn push_matters_by_work(gc:&MattersState,work:Num,dir_vec:Vec2Fix,worker_speed:Vec2Fix)->Delta<Matters> {
     //let v1=(worker_speed-gc.v_mean())*dir_vec;
-    let v1=(gc.v_mean()+worker_speed)*dir_vec;
+    let v1=(gc.v_mean+worker_speed)*dir_vec;
 
-    let mass=gc.mass();
+    let mass=gc.mass;
 
     //v^2 = pmt
 
@@ -284,7 +132,8 @@ pub fn push_matters_by_work(gc:&MattersState,work:Num,dir_vec:Vec2Fix,worker_spe
     // f=2p/v
     // I = 2 work / vel
 
-    Delta(Matters { 
+    //Delta
+    (Matters { 
         mass: Num::ZERO, 
         momentum: dir_vec*dv*mass,
         energy: work, })

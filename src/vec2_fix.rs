@@ -16,7 +16,7 @@ pub fn dist(a: Vec2Fix)->Num {
 
 #[inline]
 pub fn dir(a: Vec2Fix)->Num {
-    cordic::atan2(a.1, a.0)
+    cordic::atan2(a[1], a[0])
 }
 
 #[inline]

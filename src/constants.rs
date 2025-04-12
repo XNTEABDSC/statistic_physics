@@ -1,3 +1,5 @@
+use std::array;
+
 use crate::{num::Num, vec2_fix::Vec2Fix};
 
 #[test]
@@ -43,5 +45,5 @@ pub const fn mut_second_per_frame(n:Num)->Num{
 }
 
 pub const fn mut_second_per_frame_vec(v:Vec2Fix)->Vec2Fix{
-    Vec2Fix::new(mut_second_per_frame(v.0), mut_second_per_frame(v.1))
+    Vec2Fix::new(mut_second_per_frame(v.0[0]), mut_second_per_frame(v.0[1]))
 }
