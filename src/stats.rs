@@ -1,7 +1,6 @@
 use wacky_bag::derive_add_traits;
 
 use crate::num::Num;
-use crate::vec2_fix::Vec2Fix;
 
 #[derive(Default, Clone, Copy, Debug)]
 pub struct Internal(pub Num);

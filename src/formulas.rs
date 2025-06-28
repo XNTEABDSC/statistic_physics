@@ -1,6 +1,5 @@
 
 use cordic::sqrt;
-use frunk::hlist::{Plucker, Sculptor};
 use physics_basic::stats::*;
 use crate::stats::*;
 //use wacky_bag::structures::delta::Delta;
@@ -79,7 +78,7 @@ pub fn gas_cell_spread_to_side(a:(&Mass,&Vel,&VelVarSq1Dir,&VelVar1Dir),volume:N
 
 
     return //Delta
-    (Matters { mass: pass_mass, momentum: pass_momentum, energy: pass_energy });
+    Matters { mass: pass_mass, momentum: pass_momentum, energy: pass_energy };
 
 }
 /// for time dt, for ['MattersState'] with `volume`, to calculate how much [`Matters`] will cross the edge with `edge_len` and `edge_dir_vec` 
@@ -115,11 +114,11 @@ pub fn interact_gas_cell_body(gc_m:(&Mass,&Momentum,&Internal),b_m:(&Mass,&Momen
     let dinternal=b_m_internal-gc_m_internal;
     let dinternal_fac=dinternal*factor;
     //Delta
-    (Matters{
+    Matters{
         mass:Num::ZERO,
         momentum:dmomentum_fac,
         energy:dmomentum_fac_kenetic+dinternal_fac
-    })
+    }
 }
 
 pub fn push_matters_by_work(gc:(&Vel,&Mass),work:Num,dir_vec:DirVec,worker_speed:Vel)->Delta<Matters> {
@@ -144,10 +143,10 @@ pub fn push_matters_by_work(gc:(&Vel,&Mass),work:Num,dir_vec:DirVec,worker_speed
     // I = 2 work / vel
 
     //Delta
-    (Matters { 
+    Matters { 
         mass: Num::ZERO, 
         momentum: dir_vec.0*dv*mass,
-        energy: work, })
+        energy: work, }
 }
 
 /*

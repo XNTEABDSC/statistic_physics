@@ -1,9 +1,7 @@
 
 
-use physics_basic::stats::{Energy, Mass, Momentum, Vel,Kinetic};
 
 use crate::num::Num;
-use crate::stats::{Internal, VelVar, VelVar1Dir, VelVarSq, VelVarSq1Dir};
 use crate::vec2_fix::Vec2Fix;
 
 

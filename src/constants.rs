@@ -1,4 +1,3 @@
-use std::array;
 
 use crate::{num::Num, vec2_fix::Vec2Fix};
 
