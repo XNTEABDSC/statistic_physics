@@ -44,5 +44,5 @@ pub const fn mut_second_per_frame(n:Num)->Num{
 }
 
 pub const fn mut_second_per_frame_vec(v:Vec2Fix)->Vec2Fix{
-    Vec2Fix::new(mut_second_per_frame(v.0[0]), mut_second_per_frame(v.0[1]))
+    Vec2Fix::vec2_new(mut_second_per_frame(v.0[0]), mut_second_per_frame(v.0[1]))
 }

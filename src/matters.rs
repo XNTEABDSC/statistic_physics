@@ -1,8 +1,9 @@
 
 
 
+use physics_basic::vec2_fix::VecFix;
+
 use crate::num::Num;
-use crate::vec2_fix::Vec2Fix;
 
 
 /*
@@ -77,12 +78,12 @@ impl MattersState {
  */
 /* */
 #[derive(Default,Clone, Copy,Debug)]
-pub struct Matters{
+pub struct Matters<const DIM:usize>{
     /// total mass of all matters
     /// sum(a.m)
     pub mass:Num,
     /// sum(a.v*a.m)
-    pub momentum:Vec2Fix,
+    pub momentum:VecFix<DIM>,
     /// 1/2 sum(a.m*a.v^2)
     pub energy:Num,
     // 1/2 sum(a.m*(a.v-vmean)^2)

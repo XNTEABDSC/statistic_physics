@@ -8,6 +8,7 @@ edition = "2024"
 fixed = "1.28.0"
 cordic = "0.1.5"
 wacky_bag = {path="../wacky_bag"}
+wacky_bag_fixed = {path="../wacky_bag_fixed"}
 rand = "0.8.5"
 physics_basic = {path="../physics_basic"}
 frunk = "0.4.3"
