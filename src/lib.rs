@@ -1,6 +1,5 @@
 
 pub mod num;
-pub mod vec2_fix;
 pub mod formulas;
 pub mod constants;
 pub mod matters;

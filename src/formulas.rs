@@ -1,29 +1,32 @@
 
 use cordic::sqrt;
+use frunk::hlist;
+use frunk::HList;
 use physics_basic::stats::*;
 use wacky_bag_fixed::utils::normal_cdf::normal_cdf;
 use wacky_bag_fixed::utils::normal_pdf::normal_pdf;
+use wacky_bag_fixed::vec_fix::VecFix;
 use crate::stats::*;
 //use wacky_bag::structures::delta::Delta;
 
 type Delta<T>=T;
 
-use crate::{constants::*, matters::Matters, num::Num, vec2_fix::Vec2Fix};
+use crate::{constants::*, matters::Matters, num::Num};
 #[inline]
-pub fn mass_momentum_2_kenetic(momentum:Vec2Fix,mass:Num)->Num {
+pub fn mass_momentum_2_kenetic<const DIM:usize>(momentum:VecFix<DIM>,mass:Num)->Num {
     if mass.is_zero(){return Num::ZERO;}
     momentum/mass*momentum*NUMINV2
 }
 
 #[inline]
-pub fn mass_kinetic_2_momentum(kenetic:Num,mass:Num,dir_vec:Vec2Fix)->Vec2Fix {
+pub fn mass_kinetic_2_momentum<const DIM:usize>(kenetic:Num,mass:Num,dir_vec:VecFix<DIM>)->VecFix<DIM> {
     dir_vec*Num::sqrt(kenetic*mass*2)
 }
 
 
 
 /// for time dt, for ['MattersState'] with `volume`, to calculate how much [`Matters`] will cross the edge with `edge_len` and `edge_dir_vec` 
-pub fn gas_cell_spread_to_side(a:(&Mass,&Vel,&VelVarSq1Dir,&VelVar1Dir),volume:Num,edge_dir_vec:Vec2Fix,edge_len:Num,dt:Num)->Delta<Matters>{
+pub fn gas_cell_spread_to_side<const DIM:usize>(a:(&Mass,&Vel<DIM>,&VelVarSq1Dir,&VelVar1Dir),volume:Num,edge_dir_vec:VecFix<DIM>,edge_len:Num,dt:Num)->Delta<Matters<DIM>>{
     let mass=a.0.0;
     let v_mean=a.1.0;
     let v_var_sq_1dir=a.2.0;
@@ -62,7 +65,8 @@ pub fn gas_cell_spread_to_side(a:(&Mass,&Vel,&VelVarSq1Dir,&VelVar1Dir),volume:N
 
 
     return //Delta
-    Matters { mass: pass_mass, momentum: pass_momentum, energy: pass_energy };
+    hlist![Mass(pass_mass),Momentum(pass_momentum),Energy(pass_energy)];
+    //Matters { mass: pass_mass, momentum: pass_momentum, energy: pass_energy };
 
 }
 /// for time dt, for ['MattersState'] with `volume`, to calculate how much [`Matters`] will cross the edge with `edge_len` and `edge_dir_vec` 
@@ -83,7 +87,7 @@ pub fn gas_cell_spread(a:&GasCell,dt:Num,c:&mut Change<Matters>,n:&mut Change<Ma
 //pub const interact_gas_cell_body_momentum_transfer:Num = ;
 
 /// just a exist way
-pub fn interact_gas_cell_body(gc_m:(&Mass,&Momentum,&Internal),b_m:(&Mass,&Momentum,&Internal),b_radius:Num,half_life_period_factor_over_2_over_len:Num)->Delta<Matters>{
+pub fn interact_gas_cell_body<const DIM:usize>(gc_m:(&Mass,&Momentum<DIM>,&Internal),b_m:(&Mass,&Momentum<DIM>,&Internal),b_radius:Num,half_life_period_factor_over_2_over_len:Num)->Delta<Matters<DIM>>{
     let gc_m_mass=gc_m.0.0;
     let gc_m_momentum=gc_m.1.0;
     let gc_m_internal=gc_m.2.0;
@@ -98,14 +102,17 @@ pub fn interact_gas_cell_body(gc_m:(&Mass,&Momentum,&Internal),b_m:(&Mass,&Momen
     let dinternal=b_m_internal-gc_m_internal;
     let dinternal_fac=dinternal*factor;
     //Delta
+    hlist![Mass(Num::ZERO),Momentum(dmomentum_fac),Energy(dmomentum_fac_kenetic+dinternal_fac)]
+    /* 
     Matters{
         mass:Num::ZERO,
         momentum:dmomentum_fac,
         energy:dmomentum_fac_kenetic+dinternal_fac
-    }
+    }*/
 }
 
-pub fn push_matters_by_work(gc:(&Vel,&Mass),work:Num,dir_vec:DirVec,worker_speed:Vel)->Delta<Matters> {
+pub fn push_matters_by_work<const DIM:usize>(gc:(&Vel<DIM>,&Mass),work:(&Kinetic,&DirVec<DIM>,Vel<DIM>))->Delta<Matters<DIM>> {
+    let (work_kinetic,dir_vec,worker_speed)=work;
     //let v1=(worker_speed-gc.v_mean())*dir_vec;
     let v1=(gc.0.0+worker_speed.0)*dir_vec.0;
 
@@ -118,7 +125,7 @@ pub fn push_matters_by_work(gc:(&Vel,&Mass),work:Num,dir_vec:DirVec,worker_speed
     // mass v2^2=work+mass v1^2
 
     let v1_sq=v1*v1;
-    let v2_sq=work/mass+v1_sq;
+    let v2_sq=work_kinetic.0/mass+v1_sq;
     let v2=sqrt(v2_sq);
     let dv=v2-v1;
 
@@ -127,10 +134,11 @@ pub fn push_matters_by_work(gc:(&Vel,&Mass),work:Num,dir_vec:DirVec,worker_speed
     // I = 2 work / vel
 
     //Delta
-    Matters { 
-        mass: Num::ZERO, 
-        momentum: dir_vec.0*dv*mass,
-        energy: work, }
+    hlist![Mass(Num::ZERO),Momentum(dir_vec.0*dv*mass),Energy(work_kinetic.0)]
+    // Matters { 
+    //     mass: Mass(Num::ZERO), 
+    //     momentum: Momentum(dir_vec.0*dv*mass),
+    //     energy: Energy(work_kinetic.0), }
 }
 
 /*
@@ -146,24 +154,25 @@ pub fn push_matters_by_work(gc:(&Vel,&Mass),work:Num,dir_vec:DirVec,worker_speed
     vel_var_sq_1dir:&mut VelVarSq1Dir,
     vel_var_1dir:&mut VelVar1Dir,
 */
-pub fn calculate_matters_state(
-    matters:(&Mass,
-    &Momentum,
+
+pub fn calculate_matters_state_hl<const DIM:usize>(matters:HList!(&Mass,
+    &Momentum<DIM>,
     &Energy,
-    &mut Vel,
+    &mut Vel<DIM>,
     &mut Kinetic,
     &mut Internal,
     &mut VelVarSq,
     &mut VelVar,
     &mut VelVarSq1Dir,
-    &mut VelVar1Dir)
-){
-    let (mass,momentum,energy,vel,kinetic,internal,vel_var_sq,vel_var,vel_var_sq_1dir,vel_var_1dir)=matters;
+    &mut VelVar1Dir)){
+
+    let (mass,momentum,energy,vel,kinetic,internal,vel_var_sq,vel_var,vel_var_sq_1dir,vel_var_1dir)=matters.into();
     vel.0=momentum.0/mass.0;
     kinetic.0=(momentum.0*momentum.0/mass.0) *NUMINV2;
     internal.0=energy.0-kinetic.0;
     vel_var_sq.0=2*internal.0/mass.0;
     vel_var.0=Num::sqrt(vel_var_sq.0);
-    vel_var_sq_1dir.0=vel_var_sq.0*NUMINV2;
-    vel_var_1dir.0=vel_var.0*Num::FRAC_1_SQRT_2;
+    vel_var_sq_1dir.0=vel_var_sq.0/(DIM as i64);
+    vel_var_1dir.0=vel_var.0/(SQRTS[DIM]);
+    //calculate_matters_state::<DIM>(matters.into())
 }

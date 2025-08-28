@@ -1,7 +1,10 @@
 
 
 
-use physics_basic::vec2_fix::VecFix;
+
+use frunk::HList;
+use physics_basic::stats::{Energy, Mass, Momentum};
+use wacky_bag_fixed::vec_fix::VecFix;
 
 use crate::num::Num;
 
@@ -76,17 +79,20 @@ impl MattersState {
 
 }
  */
-/* */
+/* 
 #[derive(Default,Clone, Copy,Debug)]
 pub struct Matters<const DIM:usize>{
     /// total mass of all matters
     /// sum(a.m)
-    pub mass:Num,
+    pub mass:Mass,
     /// sum(a.v*a.m)
-    pub momentum:VecFix<DIM>,
+    pub momentum:Momentum<DIM>,
     /// 1/2 sum(a.m*a.v^2)
-    pub energy:Num,
+    pub energy:Energy,
     // 1/2 sum(a.m*(a.v-vmean)^2)
     
     //pub internal:Num
 }
+*/
+
+pub type Matters<const DIM:usize>=HList!(Mass,Momentum<DIM>,Energy);

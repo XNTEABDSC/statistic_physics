@@ -1,9 +1,18 @@
 
-use crate::{num::Num, vec2_fix::Vec2Fix};
+use std::array;
+
+use lazy_static::lazy_static;
+use wacky_bag_fixed::vec_fix::VecFix;
+
+use crate::{num::Num};
 
 #[test]
 fn getbits(){
     
+}
+
+lazy_static!{
+    pub static ref SQRTS:[Num;16] = array::from_fn(|i|{Num::sqrt(Num::from_num(i))});
 }
 
 pub const NUMINV2:Num=Num::unwrapped_shr(Num::ONE, 1);
@@ -43,6 +52,6 @@ pub const fn mut_second_per_frame(n:Num)->Num{
     Num::unwrapped_shr(n,5)
 }
 
-pub const fn mut_second_per_frame_vec(v:Vec2Fix)->Vec2Fix{
-    Vec2Fix::vec2_new(mut_second_per_frame(v.0[0]), mut_second_per_frame(v.0[1]))
+pub fn mut_second_per_frame_vec<const DIM:usize>(v:VecFix<DIM>)->VecFix<DIM>{
+    VecFix::new(v.0.map(|v|{mut_second_per_frame(v)}))
 }

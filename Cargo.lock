@@ -310,6 +310,7 @@ dependencies = [
  "cordic",
  "fixed",
  "frunk",
+ "lazy_static",
  "physics_basic",
  "rand",
  "wacky_bag",
@@ -353,6 +354,7 @@ version = "0.1.0"
 dependencies = [
  "cordic",
  "fixed",
+ "ndarray",
  "rand",
  "wacky_bag",
 ]
