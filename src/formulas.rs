@@ -15,7 +15,10 @@ use crate::{constants::*, matters::Matters, num::Num};
 #[inline]
 pub fn mass_momentum_2_kenetic<const DIM:usize>(momentum:VecFix<DIM>,mass:Num)->Num {
     if mass.is_zero(){return Num::ZERO;}
-    momentum/mass*momentum*NUMINV2
+
+    (momentum/mass).dot(&momentum)*NUMINV2
+
+    //momentum/mass*momentum*NUMINV2
 }
 
 #[inline]
@@ -26,12 +29,13 @@ pub fn mass_kinetic_2_momentum<const DIM:usize>(kenetic:Num,mass:Num,dir_vec:Vec
 
 
 /// for time dt, for ['MattersState'] with `volume`, to calculate how much [`Matters`] will cross the edge with `edge_len` and `edge_dir_vec` 
-pub fn gas_cell_spread_to_side<const DIM:usize>(a:(&Mass,&Vel<DIM>,&VelVarSq1Dir,&VelVar1Dir),volume:Num,edge_dir_vec:VecFix<DIM>,edge_len:Num,dt:Num)->Delta<Matters<DIM>>{
-    let mass=a.0.0;
-    let v_mean=a.1.0;
-    let v_var_sq_1dir=a.2.0;
-    let v_var_1dir=a.3.0;
-    let v_on_dir_mean=v_mean*edge_dir_vec;
+pub fn gas_cell_spread_to_side<const DIM:usize>(a:HList!(&Mass,&Vel<DIM>,&VelVarSq1Dir,&VelVar1Dir),volume:Num,edge_dir_vec:VecFix<DIM>,edge_len:Num,dt:Num)->Delta<Matters<DIM>>{
+    let (mass_,v_mean_,v_var_sq_1dir_,v_var_1dir_)=a.into();
+    let mass=mass_.0;
+    let v_mean=v_mean_.0;
+    let v_var_sq_1dir=v_var_sq_1dir_.0;
+    let v_var_1dir=v_var_1dir_.0;
+    let v_on_dir_mean=v_mean.dot(&edge_dir_vec);
     
     let mass_edge_volume_dt=mass*edge_len*dt/volume;
 
@@ -114,7 +118,7 @@ pub fn interact_gas_cell_body<const DIM:usize>(gc_m:(&Mass,&Momentum<DIM>,&Inter
 pub fn push_matters_by_work<const DIM:usize>(gc:(&Vel<DIM>,&Mass),work:(&Kinetic,&DirVec<DIM>,Vel<DIM>))->Delta<Matters<DIM>> {
     let (work_kinetic,dir_vec,worker_speed)=work;
     //let v1=(worker_speed-gc.v_mean())*dir_vec;
-    let v1=(gc.0.0+worker_speed.0)*dir_vec.0;
+    let v1=(gc.0.0+worker_speed.0).dot( &dir_vec.0);
 
     let mass=gc.1.0;
 
@@ -155,7 +159,7 @@ pub fn push_matters_by_work<const DIM:usize>(gc:(&Vel<DIM>,&Mass),work:(&Kinetic
     vel_var_1dir:&mut VelVar1Dir,
 */
 
-pub fn calculate_matters_state_hl<const DIM:usize>(matters:HList!(&Mass,
+pub fn calculate_matters_state<const DIM:usize>(matters:HList!(&Mass,
     &Momentum<DIM>,
     &Energy,
     &mut Vel<DIM>,
@@ -168,7 +172,7 @@ pub fn calculate_matters_state_hl<const DIM:usize>(matters:HList!(&Mass,
 
     let (mass,momentum,energy,vel,kinetic,internal,vel_var_sq,vel_var,vel_var_sq_1dir,vel_var_1dir)=matters.into();
     vel.0=momentum.0/mass.0;
-    kinetic.0=(momentum.0*momentum.0/mass.0) *NUMINV2;
+    kinetic.0=  mass_momentum_2_kenetic(momentum.0,mass.0);//(momentum.0*momentum.0/mass.0) *NUMINV2;
     internal.0=energy.0-kinetic.0;
     vel_var_sq.0=2*internal.0/mass.0;
     vel_var.0=Num::sqrt(vel_var_sq.0);

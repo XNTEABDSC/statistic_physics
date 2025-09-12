@@ -53,5 +53,5 @@ pub const fn mut_second_per_frame(n:Num)->Num{
 }
 
 pub fn mut_second_per_frame_vec<const DIM:usize>(v:VecFix<DIM>)->VecFix<DIM>{
-    VecFix::new(v.0.map(|v|{mut_second_per_frame(v)}))
+    v.map(|v|{mut_second_per_frame(v)})
 }

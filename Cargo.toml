@@ -5,7 +5,7 @@ edition = "2024"
 
 [dependencies]
 
-fixed = "1.28.0"
+fixed = "1.29.0"
 cordic = "0.1.5"
 wacky_bag = {path="../wacky_bag"}
 wacky_bag_fixed = {path="../wacky_bag_fixed"}
