@@ -4,9 +4,7 @@
 
 use frunk::HList;
 use physics_basic::stats::{Energy, Mass, Momentum};
-use wacky_bag_fixed::vec_fix::VecFix;
 
-use crate::num::Num;
 
 
 /*
