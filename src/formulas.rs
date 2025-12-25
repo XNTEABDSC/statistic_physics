@@ -45,6 +45,63 @@ pub fn gas_cell_spread_to_side<const DIM:usize>(a:HList!(&Mass,&Vel<DIM>,&VelVar
         let frac=v_on_dir_mean/v_var_1dir;
         (normal_cdf(frac),normal_pdf(frac))
     };
+    // let v_on_dir_mean_p2=v_on_dir_mean*v_on_dir_mean;
+
+	// \mu = v_on_dir_mean
+	// \sigma = v_var_1dir
+
+    // E[v_on_dir*max(v_on_dir,0)]
+    let g_1=v_on_dir_mean*cdf+v_var_1dir*pdf;
+    // // E[v_on_dir^2*max(v_on_dir,0)]
+    // let e_2=(v_on_dir_mean_p2+v_var_sq_1dir)*cdf+v_on_dir_mean*v_var_1dir*pdf;
+    // // E[v_on_dir^3*max(v_on_dir,0)]
+    // let e_3=v_on_dir_mean*(v_on_dir_mean_p2+3*v_var_sq_1dir)*cdf+v_var_1dir*(v_on_dir_mean_p2+2*v_var_sq_1dir)*pdf;
+
+
+    let v_on_dir_vec=edge_dir_vec*v_on_dir_mean;
+    // let v_v_dir_vec=v_mean-v_on_dir_vec;
+
+	
+    let pass_mass=mass_edge_volume_dt*g_1;
+
+    let pass_momentum=(
+        // edge_dir_vec*e_2
+        // + v_v_dir_vec*g_1
+		v_mean*g_1
+		+edge_dir_vec*(v_var_sq_1dir*cdf)
+    )*mass_edge_volume_dt;
+
+    let pass_energy=(
+        // e_3+v_var_1dir*g_1
+		v_var_sq_1dir*cdf + g_1*(v_var_sq_1dir*(DIM as i64-1)+v_mean.dot(&v_mean))
+    )* Num::FRAC_1_SQRT_2 *mass_edge_volume_dt>>1;
+
+
+    return //Delta
+    hlist![Mass(pass_mass),Momentum(pass_momentum),Energy(pass_energy)];
+    //Matters { mass: pass_mass, momentum: pass_momentum, energy: pass_energy };
+
+}
+
+
+/*
+/// for time dt, for ['MattersState'] with `volume`, to calculate how much [`Matters`] will cross the edge with `edge_len` and `edge_dir_vec` 
+pub fn gas_cell_spread_to_side<const DIM:usize>(a:HList!(&Mass,&Vel<DIM>,&VelVarSq1Dir,&VelVar1Dir),volume:Num,edge_dir_vec:VecFix<DIM>,edge_len:Num,dt:Num)->Delta<Matters<DIM>>{
+    let (mass_,v_mean_,v_var_sq_1dir_,v_var_1dir_)=a.into();
+    let mass=mass_.0;
+    let v_mean=v_mean_.0;
+    let v_var_sq_1dir=v_var_sq_1dir_.0;
+    let v_var_1dir=v_var_1dir_.0;
+    let v_on_dir_mean=v_mean.dot(&edge_dir_vec);
+    
+    let mass_edge_volume_dt=mass*edge_len*dt/volume;
+
+    let (cdf,pdf)=if v_var_1dir.is_zero() {
+        ( if v_on_dir_mean>0 {Num::ONE} else {Num::ZERO} , Num::ZERO)
+    }else{
+        let frac=v_on_dir_mean/v_var_1dir;
+        (normal_cdf(frac),normal_pdf(frac))
+    };
     let v_on_dir_mean_p2=v_on_dir_mean*v_on_dir_mean;
 
 
@@ -73,6 +130,8 @@ pub fn gas_cell_spread_to_side<const DIM:usize>(a:HList!(&Mass,&Vel<DIM>,&VelVar
     //Matters { mass: pass_mass, momentum: pass_momentum, energy: pass_energy };
 
 }
+*/
+
 /// for time dt, for ['MattersState'] with `volume`, to calculate how much [`Matters`] will cross the edge with `edge_len` and `edge_dir_vec` 
 
 /*
