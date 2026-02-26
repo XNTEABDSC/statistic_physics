@@ -11,7 +11,7 @@ use crate::stats::*;
 
 type Delta<T>=T;
 
-use crate::{constants::*, matters::Matters, num::Num};
+use crate::{constants::*, matters::MattersBasic, num::Num};
 #[inline]
 pub fn mass_momentum_2_kenetic<const DIM:usize>(momentum:VecFix<DIM>,mass:Num)->Num {
     if mass.is_zero(){return Num::ZERO;}
@@ -29,7 +29,7 @@ pub fn mass_kinetic_2_momentum<const DIM:usize>(kenetic:Num,mass:Num,dir_vec:Vec
 
 
 /// for time dt, for ['MattersState'] with `volume`, to calculate how much [`Matters`] will cross the edge with `edge_len` and `edge_dir_vec` 
-pub fn gas_cell_spread_to_side<const DIM:usize>(a:HList!(&Mass,&Vel<DIM>,&VelVarSq1Dir,&VelVar1Dir),volume:Num,edge_dir_vec:VecFix<DIM>,edge_len:Num,dt:Num)->Delta<Matters<DIM>>{
+pub fn gas_cell_spread_to_side<const DIM:usize>(a:HList!(&Mass,&Vel<DIM>,&VelVarSq1Dir,&VelVar1Dir),volume:Num,edge_dir_vec:VecFix<DIM>,edge_len:Num,dt:Num)->Delta<MattersBasic<DIM>>{
     let (mass_,v_mean_,v_var_sq_1dir_,v_var_1dir_)=a.into();
     let mass=mass_.0;
     let v_mean=v_mean_.0;
@@ -150,7 +150,7 @@ pub fn gas_cell_spread(a:&GasCell,dt:Num,c:&mut Change<Matters>,n:&mut Change<Ma
 //pub const interact_gas_cell_body_momentum_transfer:Num = ;
 
 /// just a exist way
-pub fn interact_gas_cell_body<const DIM:usize>(gc_m:(&Mass,&Momentum<DIM>,&Internal),b_m:(&Mass,&Momentum<DIM>,&Internal),b_radius:Num,half_life_period_factor_over_2_over_len:Num)->Delta<Matters<DIM>>{
+pub fn interact_gas_cell_body<const DIM:usize>(gc_m:(&Mass,&Momentum<DIM>,&Internal),b_m:(&Mass,&Momentum<DIM>,&Internal),b_radius:Num,half_life_period_factor_over_2_over_len:Num)->Delta<MattersBasic<DIM>>{
     let gc_m_mass=gc_m.0.0;
     let gc_m_momentum=gc_m.1.0;
     let gc_m_internal=gc_m.2.0;
@@ -174,7 +174,7 @@ pub fn interact_gas_cell_body<const DIM:usize>(gc_m:(&Mass,&Momentum<DIM>,&Inter
     }*/
 }
 
-pub fn push_matters_by_work<const DIM:usize>(gc:(&Vel<DIM>,&Mass),work:(&Kinetic,&DirVec<DIM>,Vel<DIM>))->Delta<Matters<DIM>> {
+pub fn push_matters_by_work<const DIM:usize>(gc:(&Vel<DIM>,&Mass),work:(&Kinetic,&DirVec<DIM>,Vel<DIM>))->Delta<MattersBasic<DIM>> {
     let (work_kinetic,dir_vec,worker_speed)=work;
     //let v1=(worker_speed-gc.v_mean())*dir_vec;
     let v1=(gc.0.0+worker_speed.0).dot( &dir_vec.0);
@@ -218,7 +218,8 @@ pub fn push_matters_by_work<const DIM:usize>(gc:(&Vel<DIM>,&Mass),work:(&Kinetic
     vel_var_1dir:&mut VelVar1Dir,
 */
 
-pub fn calculate_matters_state<const DIM:usize>(matters:HList!(&Mass,
+pub fn calculate_matters_state<const DIM:usize>(matters:HList!(
+	&Mass,
     &Momentum<DIM>,
     &Energy,
     &mut Vel<DIM>,

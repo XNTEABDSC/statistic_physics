@@ -3,8 +3,8 @@
 
 
 use frunk::HList;
-use physics_basic::stats::{Energy, Mass, Momentum};
-
+use physics_basic::stats::*;
+use crate::stats::*;
 
 
 /*
@@ -93,4 +93,17 @@ pub struct Matters<const DIM:usize>{
 }
 */
 
-pub type Matters<const DIM:usize>=HList!(Mass,Momentum<DIM>,Energy);
+pub type MattersBasic<const DIM:usize>=HList!(Mass,Momentum<DIM>,Energy);
+
+pub type MattersFull<const DIM: usize>=HList!(
+	Mass,
+	Momentum<DIM>,
+	Energy,
+    Vel<DIM>,
+    Kinetic,
+    Internal,
+    VelVarSq,
+    VelVar,
+    VelVarSq1Dir,
+    VelVar1Dir
+);
