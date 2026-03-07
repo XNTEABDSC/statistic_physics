@@ -217,7 +217,29 @@ pub fn push_matters_by_work<const DIM:usize>(gc:(&Vel<DIM>,&Mass),work:(&Kinetic
     vel_var_sq_1dir:&mut VelVarSq1Dir,
     vel_var_1dir:&mut VelVar1Dir,
 */
-
+pub fn calculate_matters_state_m<const DIM:usize>(matters:HList!(
+	&mut Mass,
+    &mut Momentum<DIM>,
+    &mut Energy,
+    &mut Vel<DIM>,
+    &mut Kinetic,
+    &mut Internal,
+    &mut VelVarSq,
+    &mut VelVar,
+    &mut VelVarSq1Dir,
+    &mut VelVar1Dir)){
+		
+    let (mass,momentum,energy,vel,kinetic,internal,vel_var_sq,vel_var,vel_var_sq_1dir,vel_var_1dir)=matters.into();
+    calculate_matters_state(hlist!(mass,momentum,energy,vel,kinetic,internal,vel_var_sq,vel_var,vel_var_sq_1dir,vel_var_1dir));
+	//vel.0=momentum.0/mass.0;
+    //kinetic.0=  mass_momentum_2_kenetic(momentum.0,mass.0);//(momentum.0*momentum.0/mass.0) *NUMINV2;
+    //internal.0=energy.0-kinetic.0;
+    //vel_var_sq.0=2*internal.0/mass.0;
+    //vel_var.0=Num::sqrt(vel_var_sq.0);
+    //vel_var_sq_1dir.0=vel_var_sq.0/(DIM as i64);
+    //vel_var_1dir.0=vel_var.0/(SQRTS[DIM]);
+    //calculate_matters_state::<DIM>(matters.into())
+}
 pub fn calculate_matters_state<const DIM:usize>(matters:HList!(
 	&Mass,
     &Momentum<DIM>,
