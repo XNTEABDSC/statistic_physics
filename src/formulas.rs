@@ -1,11 +1,16 @@
 
 use cordic::sqrt;
+use frunk::Poly;
+use frunk::ToRef;
 use frunk::hlist;
 use frunk::HList;
 use physics_basic::stats::*;
+use wacky_bag::utils::h_list_helpers::MapClone;
+use wacky_bag::utils::output_func::HMappableFrom;
 use wacky_bag_fixed::utils::normal_cdf::normal_cdf;
 use wacky_bag_fixed::utils::normal_pdf::normal_pdf;
 use wacky_bag_fixed::vec_fix::VecFix;
+use crate::matters::MattersFull;
 use crate::stats::*;
 //use wacky_bag::structures::delta::Delta;
 
@@ -217,7 +222,20 @@ pub fn push_matters_by_work<const DIM:usize>(gc:(&Vel<DIM>,&Mass),work:(&Kinetic
     vel_var_sq_1dir:&mut VelVarSq1Dir,
     vel_var_1dir:&mut VelVar1Dir,
 */
-pub fn calculate_matters_state_m<const DIM:usize>(matters:HList!(
+
+pub fn calculate_matters_state<const DIM:usize>(matters:MattersBasic<DIM>)->MattersFull<DIM>{
+	let (mass,momentum,energy)=matters.into();
+    let vel=Vel( momentum.0/mass.0);
+    let kinetic=Kinetic(  mass_momentum_2_kenetic(momentum.0,mass.0) );//(momentum.0*momentum.0/mass.0) *NUMINV2;
+    let internal=Internal(energy.0-kinetic.0);
+    let vel_var_sq=VelVarSq(2*internal.0/mass.0);
+    let vel_var=VelVar(Num::sqrt(vel_var_sq.0));
+    let vel_var_sq_1dir=VelVarSq1Dir(vel_var_sq.0/(DIM as i64));
+    let vel_var_1dir=VelVar1Dir(vel_var.0/(SQRTS[DIM]));
+	hlist![mass,momentum,energy,vel,kinetic,internal,vel_var_sq,vel_var,vel_var_sq_1dir,vel_var_1dir]
+}
+
+pub fn calculate_matters_state_inplace_m<const DIM:usize>(matters:HList!(
 	&mut Mass,
     &mut Momentum<DIM>,
     &mut Energy,
@@ -230,7 +248,7 @@ pub fn calculate_matters_state_m<const DIM:usize>(matters:HList!(
     &mut VelVar1Dir)){
 		
     let (mass,momentum,energy,vel,kinetic,internal,vel_var_sq,vel_var,vel_var_sq_1dir,vel_var_1dir)=matters.into();
-    calculate_matters_state(hlist!(mass,momentum,energy,vel,kinetic,internal,vel_var_sq,vel_var,vel_var_sq_1dir,vel_var_1dir));
+    calculate_matters_state_inplace(hlist!(mass,momentum,energy,vel,kinetic,internal,vel_var_sq,vel_var,vel_var_sq_1dir,vel_var_1dir));
 	//vel.0=momentum.0/mass.0;
     //kinetic.0=  mass_momentum_2_kenetic(momentum.0,mass.0);//(momentum.0*momentum.0/mass.0) *NUMINV2;
     //internal.0=energy.0-kinetic.0;
@@ -240,7 +258,10 @@ pub fn calculate_matters_state_m<const DIM:usize>(matters:HList!(
     //vel_var_1dir.0=vel_var.0/(SQRTS[DIM]);
     //calculate_matters_state::<DIM>(matters.into())
 }
-pub fn calculate_matters_state<const DIM:usize>(matters:HList!(
+
+
+
+pub fn calculate_matters_state_inplace<const DIM:usize>(matters:HList!(
 	&Mass,
     &Momentum<DIM>,
     &Energy,
@@ -250,8 +271,8 @@ pub fn calculate_matters_state<const DIM:usize>(matters:HList!(
     &mut VelVarSq,
     &mut VelVar,
     &mut VelVarSq1Dir,
-    &mut VelVar1Dir)){
-
+    &mut VelVar1Dir))
+{
     let (mass,momentum,energy,vel,kinetic,internal,vel_var_sq,vel_var,vel_var_sq_1dir,vel_var_1dir)=matters.into();
     vel.0=momentum.0/mass.0;
     kinetic.0=  mass_momentum_2_kenetic(momentum.0,mass.0);//(momentum.0*momentum.0/mass.0) *NUMINV2;
