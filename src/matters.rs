@@ -96,18 +96,18 @@ pub struct Matters<const DIM:usize>{
 /// The basic stats of matters: [Mass] [Momentum] [Energy]
 /// 
 /// They will be used to record changes, and used to calculate [MattersFull].
-pub type MattersBasic<const DIM:usize>=HList!(Mass,Momentum<DIM>,Energy);
+pub type MattersBasic<Num,const DIM:usize>=HList!(Mass<Num>,Momentum<Num,DIM>,Energy<Num>);
 
 /// All useful stats of matters
-pub type MattersFull<const DIM: usize>=HList!(
-	Mass,
-	Momentum<DIM>,
-	Energy,
-    Vel<DIM>,
-    Kinetic,
-    Internal,
-    VelVarSq,
-    VelVar,
-    VelVarSq1Dir,
-    VelVar1Dir
+pub type MattersFull<Num,const DIM: usize>=HList!(
+	Mass<Num>,
+	Momentum<Num,DIM>,
+	Energy<Num>,
+    Vel<Num,DIM>,
+    Kinetic<Num>,
+    Internal<Num>,
+    VelVarSq<Num>,
+    VelVar<Num>,
+    VelVarSq1Dir<Num>,
+    VelVar1Dir<Num>
 );
