@@ -28,4 +28,10 @@ pub struct VelVarSq1Dir<Num>(pub Num);
 #[derive(Default, Clone, Copy, Debug)]
 pub struct VelVar1Dir<Num>(pub Num);
 
+#[derive(Default, Clone, Copy, Debug)]
+pub struct Volume<Num>(pub Num);
+
+#[derive(Default, Clone, Copy, Debug)]
+pub struct Density<Num>(pub Num);
+
 //derive_add_traits!(VelVar1Dir);

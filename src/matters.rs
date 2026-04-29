@@ -1,102 +1,18 @@
 
-
-
-
 use frunk::HList;
 use physics_basic::stats::*;
 use crate::stats::*;
 
 
-/*
-impl MattersState {
-    pub fn new(matters:Matters)->MattersState{
-        let mass=matters.mass;
-        let momentum=matters.momentum;
-        let energy=matters.energy;
-        let kinetic=mass_momentum_2_kenetic(momentum, mass);
-        let internal=energy-kinetic;
-        let v_mean=if mass.is_zero() {Vec2Fix::default()} else { momentum/mass};
-        let v_var_sq=if mass.is_zero() {Num::ZERO}else{internal/mass*2};
-        let v_var=  Num::sqrt(v_var_sq );
-        MattersState{
-            mass,momentum,energy,kinetic,internal,v_mean,v_var_sq,v_var
-        }
-    }
-    
-    pub fn mass(&self) -> Num {
-        self.mass
-    }
-    
-    pub fn momentum(&self) -> Vec2Fix {
-        self.momentum
-    }
-    
-    pub fn energy(&self) -> Num{
-        self.energy
-    }
-    
-    pub fn kinetic(&self) -> Num {
-        self.kinetic
-    }
-    
-    pub fn internal(&self) -> Num {
-        self.internal
-    }
-    
-    pub fn v_mean(&self) -> Vec2Fix {
-        self.v_mean
-    }
-    
-    pub fn v_var_sq(&self) -> Num {
-        self.v_var_sq
-    }
-    
-    pub fn v_var(&self) -> Num {
-        self.v_var
-    }
-
-    #[inline]
-    pub fn take_matters_percent(&self,per:Num)->Delta <Matters>{
-        Delta(Matters{
-            mass:self.mass*per,
-            momentum:self.momentum*per,
-            energy:self.energy*per
-            //internal:self.internal*per
-        })
-    }
-    #[inline]
-    pub fn take_matters(&self,mass:Num)->Delta<Matters> {
-        let per=mass/self.mass;
-        Delta(Matters{
-            mass,
-            momentum:self.momentum*per,
-            energy:self.energy*per,
-            //internal:self.internal*per
-        })
-    }
-
-}
- */
-/* 
-#[derive(Default,Clone, Copy,Debug)]
-pub struct Matters<const DIM:usize>{
-    /// total mass of all matters
-    /// sum(a.m)
-    pub mass:Mass,
-    /// sum(a.v*a.m)
-    pub momentum:Momentum<DIM>,
-    /// 1/2 sum(a.m*a.v^2)
-    pub energy:Energy,
-    // 1/2 sum(a.m*(a.v-vmean)^2)
-    
-    //pub internal:Num
-}
-*/
+/// 
+/// 
+/// They will be used to record changes, and used to calculate [MattersFull].
+pub type MattersBasic<Num,const DIM:usize>=HList!(Mass<Num>,Momentum<Num,DIM>,Energy<Num>,Volume<Num>);
 
 /// The basic stats of matters: [Mass] [Momentum] [Energy]
 /// 
 /// They will be used to record changes, and used to calculate [MattersFull].
-pub type MattersBasic<Num,const DIM:usize>=HList!(Mass<Num>,Momentum<Num,DIM>,Energy<Num>);
+pub type MattersBasicStat<Num,const DIM:usize>=HList!(Mass<Num>,Momentum<Num,DIM>,Energy<Num>);
 
 /// All useful stats of matters
 pub type MattersFull<Num,const DIM: usize>=HList!(
@@ -109,5 +25,7 @@ pub type MattersFull<Num,const DIM: usize>=HList!(
     VelVarSq<Num>,
     VelVar<Num>,
     VelVarSq1Dir<Num>,
-    VelVar1Dir<Num>
+    VelVar1Dir<Num>,
+	Volume<Num>,
+	Density<Num>
 );

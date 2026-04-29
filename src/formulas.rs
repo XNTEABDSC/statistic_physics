@@ -6,17 +6,21 @@ use frunk::HList;
 use nalgebra::SVector;
 use physics_basic::stats::*;
 use simba::scalar::RealField;
+use wacky_bag::math::normal_cdf::NormalCdfConsts;
 use wacky_bag::math::normal_cdf::normal_cdf;
 use wacky_bag::math::normal_pdf::normal_pdf;
+use wacky_bag::utils::h_list_helpers::HToMut;
+use wacky_bag::utils::h_list_helpers::HToRef;
 use wacky_bag::utils::num_extend::NumExtend;
 
+use crate::matters::MattersBasic;
 use crate::matters::MattersFull;
 use crate::stats::*;
 //use wacky_bag::structures::delta::Delta;
 
 type Delta<T>=T;
 
-use crate::{matters::MattersBasic};
+use crate::{matters::MattersBasicStat};
 #[inline]
 pub fn mass_momentum_2_kenetic<Num:Copy+RealField+num_traits::Num,const DIM:usize>(momentum:SVector<Num,DIM>,mass:Num)->Num {
     if mass.is_zero(){return Num::zero();}
@@ -31,18 +35,18 @@ pub fn mass_kinetic_2_momentum<Num:Copy+RealField+num_traits::Num,const DIM:usiz
     dir_vec*Num::sqrt(kenetic*mass* Num::p2() )
 }
 
-
+pub type GasCellSpreadToSideType<Num,const DIM:usize>=HList!(Density<Num>,Vel<Num,DIM>,VelVarSq1Dir<Num>,VelVar1Dir<Num>);
 
 /// for time dt, for ['MattersState'] with `volume`, to calculate how much [`Matters`] will cross the edge with `edge_len` and `edge_dir_vec` 
-pub fn gas_cell_spread_to_side<Num:Copy+RealField+num_traits::Num+const FromStr,const DIM:usize>(a:HList!(&Mass<Num>,&Vel<Num,DIM>,&VelVarSq1Dir<Num>,&VelVar1Dir<Num>),volume:Num,edge_dir_vec:SVector<Num,DIM>,edge_len:Num,dt:Num)->Delta<MattersBasic<Num,DIM>>{
-    let (mass_,v_mean_,v_var_sq_1dir_,v_var_1dir_)=a.into();
-    let mass=mass_.0;
+pub fn gas_cell_spread_to_side<Num:Copy+RealField+num_traits::Num+NormalCdfConsts<Marker>,const DIM:usize,Marker>(a:HToRef<GasCellSpreadToSideType<Num,DIM>>,edge_dir_vec:SVector<Num,DIM>,edge_len:Num,dt:Num)->Delta<MattersBasicStat<Num,DIM>>{
+    let (density_,v_mean_,v_var_sq_1dir_,v_var_1dir_)=a.into();
+    let density=density_.0;
     let v_mean=v_mean_.0;
     let v_var_sq_1dir=v_var_sq_1dir_.0;
     let v_var_1dir=v_var_1dir_.0;
     let v_on_dir_mean=v_mean.dot(&edge_dir_vec);
     
-    let mass_edge_volume_dt=mass*edge_len*dt/volume;
+    let mass_edge_volume_dt=density*edge_len*dt;
 
     let (cdf,pdf)=if v_var_1dir.is_zero() {
         ( if v_on_dir_mean.is_positive() {Num::one()} else {Num::zero()} , Num::zero())
@@ -154,7 +158,7 @@ pub fn gas_cell_spread(a:&GasCell,dt:Num,c:&mut Change<Matters>,n:&mut Change<Ma
 //pub const interact_gas_cell_body_momentum_transfer:Num = ;
 
 /// just a way
-pub fn interact_gas_cell_body<Num:RealField+Copy,const DIM:usize>(gc_m:(&Mass<Num>,&Momentum<Num,DIM>,&Internal<Num>),b_m:(&Mass<Num>,&Momentum<Num,DIM>,&Internal<Num>),b_radius:Num,half_life_period_factor_over_2_over_len:Num)->Delta<MattersBasic<Num,DIM>>{
+pub fn interact_gas_cell_body<Num:RealField+Copy,const DIM:usize>(gc_m:(&Mass<Num>,&Momentum<Num,DIM>,&Internal<Num>),b_m:(&Mass<Num>,&Momentum<Num,DIM>,&Internal<Num>),b_radius:Num,half_life_period_factor_over_2_over_len:Num)->Delta<MattersBasicStat<Num,DIM>>{
     let gc_m_mass=gc_m.0.0;
     let gc_m_momentum=gc_m.1.0;
     let gc_m_internal=gc_m.2.0;
@@ -178,7 +182,7 @@ pub fn interact_gas_cell_body<Num:RealField+Copy,const DIM:usize>(gc_m:(&Mass<Nu
     }*/
 }
 
-pub fn push_matters_by_work<Num:RealField+Copy,const DIM:usize>(gc:(&Vel<Num,DIM>,&Mass<Num>),work:(&Kinetic<Num>,&DirVec<Num,DIM>,Vel<Num,DIM>))->Delta<MattersBasic<Num,DIM>> {
+pub fn push_matters_by_work<Num:RealField+Copy,const DIM:usize>(gc:(&Vel<Num,DIM>,&Mass<Num>),work:(&Kinetic<Num>,&DirVec<Num,DIM>,Vel<Num,DIM>))->Delta<MattersBasicStat<Num,DIM>> {
     let (work_kinetic,dir_vec,worker_speed)=work;
     //let v1=(worker_speed-gc.v_mean())*dir_vec;
     let v1=(gc.0.0+worker_speed.0).dot( &dir_vec.0);
@@ -223,7 +227,7 @@ pub fn push_matters_by_work<Num:RealField+Copy,const DIM:usize>(gc:(&Vel<Num,DIM
 */
 
 pub fn calculate_matters_state<Num:RealField+Copy,const DIM:usize>(matters:MattersBasic<Num,DIM>)->MattersFull<Num,DIM>{
-	let (mass,momentum,energy)=matters.into();
+	let (mass,momentum,energy,volume)=matters.into();
     let vel=Vel( momentum.0/mass.0);
     let kinetic=Kinetic(  mass_momentum_2_kenetic(momentum.0,mass.0) );//(momentum.0*momentum.0/mass.0) *NUMINV2;
     let internal=Internal(energy.0-kinetic.0);
@@ -231,23 +235,28 @@ pub fn calculate_matters_state<Num:RealField+Copy,const DIM:usize>(matters:Matte
     let vel_var=VelVar(Num::sqrt(vel_var_sq.0));
     let vel_var_sq_1dir=VelVarSq1Dir(vel_var_sq.0/Num::from_isize(DIM as isize).unwrap());
     let vel_var_1dir=VelVar1Dir(vel_var.0/(Num::from_isize(DIM as isize).unwrap().sqrt()));
-	hlist![mass,momentum,energy,vel,kinetic,internal,vel_var_sq,vel_var,vel_var_sq_1dir,vel_var_1dir]
+	let density=Density(mass.0/volume.0);
+	hlist![mass,momentum,energy,vel,kinetic,internal,vel_var_sq,vel_var,vel_var_sq_1dir,vel_var_1dir,volume,density]
 }
 
-pub fn calculate_matters_state_inplace_m<Num:RealField+Copy,const DIM:usize>(matters:HList!(
-	&mut Mass<Num>,
-    &mut Momentum<Num,DIM>,
-    &mut Energy<Num>,
-    &mut Vel<Num,DIM>,
-    &mut Kinetic<Num>,
-    &mut Internal<Num>,
-    &mut VelVarSq<Num>,
-    &mut VelVar<Num>,
-    &mut VelVarSq1Dir<Num>,
-    &mut VelVar1Dir<Num>)){
+pub fn calculate_matters_state_inplace_m<Num:RealField+Copy,const DIM:usize>(
+	matters:
+		// HList!(
+		// &mut Mass<Num>,
+		// &mut Momentum<Num,DIM>,
+		// &mut Energy<Num>,
+		// &mut Vel<Num,DIM>,
+		// &mut Kinetic<Num>,
+		// &mut Internal<Num>,
+		// &mut VelVarSq<Num>,
+		// &mut VelVar<Num>,
+		// &mut VelVarSq1Dir<Num>,
+		// &mut VelVar1Dir<Num>)
+		HToMut<MattersFull<Num,DIM>>
+){
 		
-    let (mass,momentum,energy,vel,kinetic,internal,vel_var_sq,vel_var,vel_var_sq_1dir,vel_var_1dir)=matters.into();
-    calculate_matters_state_inplace(hlist!(mass,momentum,energy,vel,kinetic,internal,vel_var_sq,vel_var,vel_var_sq_1dir,vel_var_1dir));
+    let (mass,momentum,energy,volume,vel,kinetic,internal,vel_var_sq,vel_var,vel_var_sq_1dir,vel_var_1dir,density)=matters.into();
+    calculate_matters_state_inplace(hlist!(mass,momentum,energy,volume,vel,kinetic,internal,vel_var_sq,vel_var,vel_var_sq_1dir,vel_var_1dir,density));
 	//vel.0=momentum.0/mass.0;
     //kinetic.0=  mass_momentum_2_kenetic(momentum.0,mass.0);//(momentum.0*momentum.0/mass.0) *NUMINV2;
     //internal.0=energy.0-kinetic.0;
@@ -270,9 +279,11 @@ pub fn calculate_matters_state_inplace<Num:RealField+Copy,const DIM:usize>(matte
     &mut VelVarSq<Num>,
     &mut VelVar<Num>,
     &mut VelVarSq1Dir<Num>,
-    &mut VelVar1Dir<Num>))
+    &mut VelVar1Dir<Num>,
+	&Volume<Num>,
+	&mut Density<Num>))
 {
-    let (mass,momentum,energy,vel,kinetic,internal,vel_var_sq,vel_var,vel_var_sq_1dir,vel_var_1dir)=matters.into();
+    let (mass,momentum,energy,vel,kinetic,internal,vel_var_sq,vel_var,vel_var_sq_1dir,vel_var_1dir,volume,density)=matters.into();
     vel.0=momentum.0/mass.0;
     kinetic.0=  mass_momentum_2_kenetic(momentum.0,mass.0);//(momentum.0*momentum.0/mass.0) *NUMINV2;
     internal.0=energy.0-kinetic.0;
@@ -280,5 +291,6 @@ pub fn calculate_matters_state_inplace<Num:RealField+Copy,const DIM:usize>(matte
     vel_var.0=Num::sqrt(vel_var_sq.0);
     vel_var_sq_1dir.0=vel_var_sq.0/Num::from_isize(DIM as isize).unwrap();
     vel_var_1dir.0=vel_var.0/(Num::sqrt(Num::from_isize(DIM as isize).unwrap()));
+	density.0=mass.0/volume.0;
     //calculate_matters_state::<DIM>(matters.into())
 }
