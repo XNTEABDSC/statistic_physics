@@ -232,12 +232,19 @@ pub fn calculate_matters_state<Num:RealField+Copy,const DIM:usize>(matters:Matte
     let kinetic=Kinetic(  mass_momentum_2_kenetic(momentum.0,mass.0) );//(momentum.0*momentum.0/mass.0) *NUMINV2;
     let internal=Internal(energy.0-kinetic.0);
     let vel_var_sq=VelVarSq(Num::p2()*internal.0/mass.0);
-    let vel_var=VelVar(Num::sqrt(vel_var_sq.0));
+    let vel_var=VelVar(
+		if vel_var_sq.0.is_negative(){
+			-Num::sqrt(-vel_var_sq.0)
+		}else{
+			Num::sqrt(vel_var_sq.0)
+		}
+	);
     let vel_var_sq_1dir=VelVarSq1Dir(vel_var_sq.0/Num::from_isize(DIM as isize).unwrap());
     let vel_var_1dir=VelVar1Dir(vel_var.0/(Num::from_isize(DIM as isize).unwrap().sqrt()));
 	let density=Density(mass.0/volume.0);
 	hlist![mass,momentum,energy,vel,kinetic,internal,vel_var_sq,vel_var,vel_var_sq_1dir,vel_var_1dir,volume,density]
 }
+
 
 pub fn calculate_matters_state_inplace_m<Num:RealField+Copy,const DIM:usize>(
 	matters:
@@ -288,9 +295,34 @@ pub fn calculate_matters_state_inplace<Num:RealField+Copy,const DIM:usize>(matte
     kinetic.0=  mass_momentum_2_kenetic(momentum.0,mass.0);//(momentum.0*momentum.0/mass.0) *NUMINV2;
     internal.0=energy.0-kinetic.0;
     vel_var_sq.0=Num::p2()*internal.0/mass.0;
-    vel_var.0=Num::sqrt(vel_var_sq.0);
+    vel_var.0=if vel_var_sq.0.is_negative(){
+		-Num::sqrt(-vel_var_sq.0)
+	}else{
+		Num::sqrt(vel_var_sq.0)
+	};
     vel_var_sq_1dir.0=vel_var_sq.0/Num::from_isize(DIM as isize).unwrap();
     vel_var_1dir.0=vel_var.0/(Num::sqrt(Num::from_isize(DIM as isize).unwrap()));
 	density.0=mass.0/volume.0;
     //calculate_matters_state::<DIM>(matters.into())
+}
+
+#[cfg(test)]
+mod tests{
+	use num_traits::{One, zero};
+
+	use super::*;
+
+	type Num=simba::scalar::FixedI32F32;
+
+	const DIM:usize=2;
+	#[test]
+	pub fn bug_test(){
+		
+		let one=Num::one();
+		let f_1_2=Num::from_num(0.5);
+		let input=hlist!(Mass(one),Momentum([f_1_2*f_1_2*f_1_2*f_1_2,zero()].into()),Energy(zero()),Volume(one));
+		let output=calculate_matters_state(input);
+		println!("{:?}",output);
+	}
+
 }

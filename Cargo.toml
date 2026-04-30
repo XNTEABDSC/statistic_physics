@@ -13,7 +13,7 @@ rand = "0.8.5"
 physics_basic = {path="../physics_basic"}
 frunk = "0.4.3"
 lazy_static = "1.5.0"
-simba = {version = "0.9.1"}
+simba = {version = "0.9.1",features = ["partial_fixed_point_support"]}
 num-traits = "0.2.19"
 derive_more = {version = "2.0.1",features = ["add","add_assign","not"]}
 nalgebra = "0.34.0"
