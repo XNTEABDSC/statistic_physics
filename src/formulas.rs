@@ -3,7 +3,9 @@ use std::str::FromStr;
 
 use frunk::hlist;
 use frunk::HList;
+use frunk::hlist_pat;
 use nalgebra::SVector;
+use physics_basic::body::ShapeCircle;
 use physics_basic::stats::*;
 use simba::scalar::RealField;
 use wacky_bag::math::normal_cdf::NormalCdfConsts;
@@ -11,7 +13,7 @@ use wacky_bag::math::normal_cdf::normal_cdf;
 use wacky_bag::math::normal_pdf::normal_pdf;
 use wacky_bag::utils::h_list_helpers::HToMut;
 use wacky_bag::utils::h_list_helpers::HToRef;
-use wacky_bag::utils::num_extend::NumExtend;
+use wacky_bag::utils::num_extend::NumExtends;
 
 use crate::matters::MattersBasic;
 use crate::matters::MattersFull;
@@ -157,20 +159,31 @@ pub fn gas_cell_spread(a:&GasCell,dt:Num,c:&mut Change<Matters>,n:&mut Change<Ma
  
 //pub const interact_gas_cell_body_momentum_transfer:Num = ;
 
+pub type InteractGasCellBodyGridCellMatters<Num,const DIM:usize>=HList!(Mass<Num>,Momentum<Num,DIM>,Internal<Num>);
+pub type InteractGasCellBodyBodyMatters<Num,const DIM:usize>=HList!(Mass<Num>,Momentum<Num,DIM>,Internal<Num>,ShapeCircle<Num,DIM>);
+
 /// just a way
-pub fn interact_gas_cell_body<Num:RealField+Copy,const DIM:usize>(gc_m:(&Mass<Num>,&Momentum<Num,DIM>,&Internal<Num>),b_m:(&Mass<Num>,&Momentum<Num,DIM>,&Internal<Num>),b_radius:Num,half_life_period_factor_over_2_over_len:Num)->Delta<MattersBasicStat<Num,DIM>>{
-    let gc_m_mass=gc_m.0.0;
-    let gc_m_momentum=gc_m.1.0;
-    let gc_m_internal=gc_m.2.0;
-    let b_m_mass=b_m.0.0;
-    let b_m_momentum=b_m.1.0;
-    let b_m_internal=b_m.2.0;
-    let factor=-b_radius*half_life_period_factor_over_2_over_len;
+pub fn interact_gas_cell_body_simple<Num:RealField+Copy,const DIM:usize>(
+	hlist_pat![Mass(gc_m_mass),Momentum(gc_m_momentum),Internal(gc_m_internal)]:
+	HToRef<InteractGasCellBodyGridCellMatters<Num,DIM>>,
+
+	hlist_pat![Mass(b_m_mass),Momentum(b_m_momentum),Internal(b_m_internal),ShapeCircle{radius:b_radius,..}]:
+	HToRef<InteractGasCellBodyBodyMatters<Num,DIM>>,
+	
+	half_life_period_factor_over_2_over_len:Num
+)->Delta<MattersBasicStat<Num,DIM>>{
+    // let gc_m_mass=gc_m.0.0;
+    // let gc_m_momentum=gc_m.1.0;
+    // let gc_m_internal=gc_m.2.0;
+    // let b_m_mass=b_m.0.0;
+    // let b_m_momentum=b_m.1.0;
+    // let b_m_internal=b_m.2.0;
+    let factor=-*b_radius*half_life_period_factor_over_2_over_len;
     let dmomentum=b_m_momentum-gc_m_momentum;
     let dmomentum_fac=dmomentum*factor;
     let dmomentum_fac_kenetic=
-    mass_momentum_2_kenetic(dmomentum_fac, b_m_mass)-mass_momentum_2_kenetic(-dmomentum_fac, gc_m_mass);
-    let dinternal=b_m_internal-gc_m_internal;
+    mass_momentum_2_kenetic(dmomentum_fac, *b_m_mass)-mass_momentum_2_kenetic(-dmomentum_fac, *gc_m_mass);
+    let dinternal=*b_m_internal-*gc_m_internal;
     let dinternal_fac=dinternal*factor;
     //Delta
     hlist![Mass(Num::zero()),Momentum(dmomentum_fac),Energy(dmomentum_fac_kenetic+dinternal_fac)]
