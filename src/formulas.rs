@@ -1,19 +1,10 @@
 
-use std::str::FromStr;
 
-use frunk::hlist;
-use frunk::HList;
-use frunk::hlist_pat;
-use nalgebra::SVector;
-use physics_basic::body::ShapeCircle;
-use physics_basic::stats::*;
+use frunk::{HList, hlist, hlist_pat};
+use nalgebra::{Const, DefaultAllocator, DimName, SVector, allocator::Allocator};
+use physics_basic::{body::calculate_position_state, rotation::{AngularInertia, AngularMomentum, AngularVel, DimNameToSoDimName, DimNameToSoDimNameType, angular_kinetic_from_inertia_agv, angular_momentum_from_omega}, stats::*};
 use simba::scalar::RealField;
-use wacky_bag::math::normal_cdf::NormalCdfConsts;
-use wacky_bag::math::normal_cdf::normal_cdf;
-use wacky_bag::math::normal_pdf::normal_pdf;
-use wacky_bag::utils::h_list_helpers::HToMut;
-use wacky_bag::utils::h_list_helpers::HToRef;
-use wacky_bag::utils::num_extend::NumExtends;
+use wacky_bag::{math::{normal_cdf::{NormalCdfConsts, normal_cdf}, normal_pdf::normal_pdf}, utils::{h_list_helpers::{HToMut, HToRef}, num_extend::NumExtends}};
 
 use crate::matters::MattersBasic;
 use crate::matters::MattersFull;
@@ -159,40 +150,67 @@ pub fn gas_cell_spread(a:&GasCell,dt:Num,c:&mut Change<Matters>,n:&mut Change<Ma
  
 //pub const interact_gas_cell_body_momentum_transfer:Num = ;
 
-pub type InteractGasCellBodyGridCellMatters<Num,const DIM:usize>=HList!(Mass<Num>,Momentum<Num,DIM>,Internal<Num>);
-pub type InteractGasCellBodyBodyMatters<Num,const DIM:usize>=HList!(Mass<Num>,Momentum<Num,DIM>,Internal<Num>,ShapeCircle<Num,DIM>);
+pub type InteractGasCellBodyGridCellMatters<Num,const DIM:usize>=HList!(
+	Mass<Num>,Vel<Num,DIM>,
+	VelVarSq<Num>,
+	Density<Num>);
+pub type InteractGasCellBodyBodyMatters<Num,const DIM:usize>=HList!(
+	Mass<Num>,Vel<Num,DIM>,
+	AngularInertia<Num,DIM>,AngularVel<Num,DIM>,
+	VelVarSq<Num>,
+	Density<Num>);
+pub type InteractGasCellBodyGridCellChange<Num,const DIM:usize> = MattersBasicStat<Num,DIM>;
+pub type InteractGasCellBodyBodyChange<Num,const DIM:usize> = HList!(Momentum<Num,DIM>,AngularMomentum<Num,DIM>,Energy<Num>);
 
 /// just a way
 pub fn interact_gas_cell_body_simple<Num:RealField+Copy,const DIM:usize>(
-	hlist_pat![Mass(gc_m_mass),Momentum(gc_m_momentum),Internal(gc_m_internal)]:
+	hlist_pat![
+		_gc_m_mass,gc_m_vel,
+		gc_m_vel_var_sq,
+		gc_m_density]:
 	HToRef<InteractGasCellBodyGridCellMatters<Num,DIM>>,
 
-	hlist_pat![Mass(b_m_mass),Momentum(b_m_momentum),Internal(b_m_internal),ShapeCircle{radius:b_radius,..}]:
+	hlist_pat![
+		b_m_mass,b_m_vel,
+		b_m_agi,b_n_agv,
+		b_m_vel_var_sq,
+		_b_m_density]:
 	HToRef<InteractGasCellBodyBodyMatters<Num,DIM>>,
 	
-	half_life_period_factor_over_2_over_len:Num
-)->Delta<MattersBasicStat<Num,DIM>>{
-    // let gc_m_mass=gc_m.0.0;
-    // let gc_m_momentum=gc_m.1.0;
-    // let gc_m_internal=gc_m.2.0;
-    // let b_m_mass=b_m.0.0;
-    // let b_m_momentum=b_m.1.0;
-    // let b_m_internal=b_m.2.0;
-    let factor=-*b_radius*half_life_period_factor_over_2_over_len;
-    let dmomentum=b_m_momentum-gc_m_momentum;
-    let dmomentum_fac=dmomentum*factor;
-    let dmomentum_fac_kenetic=
-    mass_momentum_2_kenetic(dmomentum_fac, *b_m_mass)-mass_momentum_2_kenetic(-dmomentum_fac, *gc_m_mass);
-    let dinternal=*b_m_internal-*gc_m_internal;
-    let dinternal_fac=dinternal*factor;
-    //Delta
-    hlist![Mass(Num::zero()),Momentum(dmomentum_fac),Energy(dmomentum_fac_kenetic+dinternal_fac)]
-    /* 
-    Matters{
-        mass:Num::ZERO,
-        momentum:dmomentum_fac,
-        energy:dmomentum_fac_kenetic+dinternal_fac
-    }*/
+	half_life_period_factor_over_len:Num
+)->(InteractGasCellBodyGridCellChange<Num,DIM>,InteractGasCellBodyBodyChange<Num,DIM>)
+	where 
+    Const<DIM>: DimNameToSoDimName + DimName,
+    DefaultAllocator: Allocator<DimNameToSoDimNameType<DIM>>
+        + Allocator<DimNameToSoDimNameType<DIM>, DimNameToSoDimNameType<DIM>>,
+{
+	
+    let factor=
+		// *gc_m_mass / *gc_m_volume * *b_m_volume / *b_m_mass
+		gc_m_density.0 / b_m_mass.0
+		* half_life_period_factor_over_len
+	;
+	let d_vel = *b_m_vel-*gc_m_vel;
+	let d_vel_fac = Vel(d_vel.0*factor);
+
+	let hlist_pat![d_momentum] = mass_vel_2_momentum(hlist![b_m_mass,&d_vel_fac]);
+	let hlist_pat![d_kinetic] = mass_vel_2_kinetic(hlist![b_m_mass,&d_vel_fac]);
+
+	let d_agv_fac = AngularVel(b_n_agv.0*factor);
+	let hlist_pat![d_ag_mom] = angular_momentum_from_omega(hlist![b_m_agi,&d_agv_fac]);
+	let hlist_pat![d_ag_kin] = angular_kinetic_from_inertia_agv(hlist![b_m_agi,&d_agv_fac]);
+
+	let d_vel_var_sq=*b_m_vel_var_sq-*gc_m_vel_var_sq;
+	let d_vel_var_sq_fac=VelVarSq(d_vel_var_sq.0*factor);
+
+	let hlist_pat![d_internal] = mass_vel_var_sq_2_internal(hlist![b_m_mass,&d_vel_var_sq_fac]);
+
+	let d_energy=Energy(d_kinetic.0+d_ag_kin.0+d_internal.0);
+
+	return (
+		hlist![Mass(Num::zero()),-d_momentum,-d_energy],
+		hlist![d_momentum,d_ag_mom,d_energy]
+	);
 }
 
 pub fn push_matters_by_work<Num:RealField+Copy,const DIM:usize>(gc:(&Vel<Num,DIM>,&Mass<Num>),work:(&Kinetic<Num>,&DirVec<Num,DIM>,Vel<Num,DIM>))->Delta<MattersBasicStat<Num,DIM>> {
@@ -239,12 +257,12 @@ pub fn push_matters_by_work<Num:RealField+Copy,const DIM:usize>(gc:(&Vel<Num,DIM
     vel_var_1dir:&mut VelVar1Dir,
 */
 
-pub fn calculate_matters_state<Num:RealField+Copy,const DIM:usize>(matters:MattersBasic<Num,DIM>)->MattersFull<Num,DIM>{
-	let (mass,momentum,energy,volume)=matters.into();
-    let vel=Vel( momentum.0/mass.0);
-    let kinetic=Kinetic(  mass_momentum_2_kenetic(momentum.0,mass.0) );//(momentum.0*momentum.0/mass.0) *NUMINV2;
-    let internal=Internal(energy.0-kinetic.0);
-    let vel_var_sq=VelVarSq(Num::p2()*internal.0/mass.0);
+pub fn mass_vel_var_sq_2_internal<Num:RealField+Copy>(hlist_pat![mass,vel_var_sq]:HList!(&Mass<Num>,&VelVarSq<Num>))->HList!(Internal<Num>){
+	hlist![Internal(vel_var_sq.0 * Num::frac_1_2() * mass.0)]
+}
+
+pub fn calculate_vel_var<Num:RealField+Copy,const DIM:usize>(hlist_pat![internal,mass]:HList!(&Internal<Num>,&Mass<Num>))->HList!(VelVarSq<Num>,VelVar<Num>,VelVarSq1Dir<Num>,VelVar1Dir<Num>){
+	let vel_var_sq=VelVarSq(Num::p2()*internal.0/mass.0);
     let vel_var=VelVar(
 		if vel_var_sq.0.is_negative(){
 			-Num::sqrt(-vel_var_sq.0)
@@ -254,7 +272,25 @@ pub fn calculate_matters_state<Num:RealField+Copy,const DIM:usize>(matters:Matte
 	);
     let vel_var_sq_1dir=VelVarSq1Dir(vel_var_sq.0/Num::from_isize(DIM as isize).unwrap());
     let vel_var_1dir=VelVar1Dir(vel_var.0/(Num::from_isize(DIM as isize).unwrap().sqrt()));
-	let density=Density(mass.0/volume.0);
+	hlist![vel_var_sq,vel_var,vel_var_sq_1dir,vel_var_1dir]
+}
+
+pub fn calculate_density<Num:RealField+Copy>(hlist_pat![mass,volume]:HList!(&Mass<Num>,&Volume<Num>))
+->HList!(Density<Num>){
+	hlist![Density(mass.0/volume.0)]
+}
+
+// pub fn calculate_internal<Num:RealField+Copy>(total_energy:Energy<Num>,other_energy:impl IntoIterator<Item :>)
+
+pub fn calculate_matters_state<Num:RealField+Copy,const DIM:usize>(matters:MattersBasic<Num,DIM>)->MattersFull<Num,DIM>{
+	let (mass,momentum,energy,volume)=matters.into();
+
+	let hlist_pat![vel,kinetic] = calculate_position_state(hlist![&mass,&momentum]);
+    let internal=Internal(energy.0-kinetic.0);
+
+	let hlist_pat![vel_var_sq,vel_var,vel_var_sq_1dir,vel_var_1dir] = calculate_vel_var::<_,DIM>(hlist![&internal,&mass]);
+	
+	let hlist_pat![density] = calculate_density(hlist![&mass,&volume]);
 	hlist![mass,momentum,energy,vel,kinetic,internal,vel_var_sq,vel_var,vel_var_sq_1dir,vel_var_1dir,volume,density]
 }
 
