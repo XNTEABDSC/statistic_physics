@@ -14,13 +14,14 @@ use crate::stats::*;
 type Delta<T>=T;
 
 use crate::{matters::MattersBasicStat};
+
 #[inline]
-pub fn mass_momentum_2_kenetic<Num:Copy+RealField+num_traits::Num,const DIM:usize>(momentum:SVector<Num,DIM>,mass:Num)->Num {
-    if mass.is_zero(){return Num::zero();}
+pub fn mass_momentum_2_kenetic<Num:Copy+RealField+num_traits::Num,const DIM:usize>(hlist_pat![Mass(mass),Momentum(momentum)]:HList!(&Mass<Num>,&Momentum<Num,DIM>))->Kinetic<Num> {
+	
 
-    (momentum/mass).dot(&momentum)/Num::p2()
-
-    //momentum/mass*momentum*NUMINV2
+    let k=if mass.is_zero() {Num::zero()} else {(*momentum / *mass).dot(&momentum)/Num::p2()};
+	
+	Kinetic(k)
 }
 
 #[inline]
@@ -29,6 +30,33 @@ pub fn mass_kinetic_2_momentum<Num:Copy+RealField+num_traits::Num,const DIM:usiz
 }
 
 pub type GasCellSpreadToSideType<Num,const DIM:usize>=HList!(Density<Num>,Vel<Num,DIM>,VelVarSq1Dir<Num>,VelVar1Dir<Num>);
+
+/*
+在N维空间中，有一群粒子，粒子自由运动，用$d mass$描述单个粒子的质量。
+这群粒子的总质量为$Mass$，处于体积$Vol$，粒子速度服从各项同性的正态分布，平均速度$\vec {V_{mean}} = 1/Mass \cdot \sum d mass \cdot \vec v$，速度方差$\vec {V_{sq}} = 1/Mass \sum d mass \cdot (\vec v-\vec {V_{mean}})^2$，
+经过$dt$时间，一些粒子经过了一个边（N-1维面），边长（N-1维面积）为$Edge$，法方向向量为$\vec {DirVec}$
+假设每个粒子$(mass,vel)$经过边的概率为$max(vel \cdot \vec {DirVec},0) \cdot dt \cdot Edge / Vol$
+求这部分粒子的质量，总动量，总能量.
+
+使用rust实现
+```
+use ...::normal_pdf; // `pub fn normal_pdf<Num>(x:Num)->Num;`
+use ...::{normal_cdf,NormalCdfConsts}; // `pub fn normal_cdf<Num,Marker>(x:Num)->Num where Num:RealField+Copy+NormalCdfConsts<Marker>;`
+
+/// The basic stats of matters: [Mass] [Momentum] [Energy]
+/// 
+/// They will be used to record changes, and used to calculate [MattersFull].
+pub type MattersBasicStat<Num,const DIM:usize>=HList!(Mass<Num>,Momentum<Num,DIM>,Energy<Num>);
+
+// 你可以从中选择需要的
+// VelVarSq1Dir = VelVarSq1Dir/DIM
+pub type GasCellSpreadToSideType<Num,const DIM:usize>=HList!(Mass<Num>,Volume<Num>,Density<Num>,Vel<Num,DIM>,VelVarSq<Num>,VelVar<Num>,VelVarSq1Dir<Num>,VelVar1Dir<Num>); 
+
+pub fn gas_cell_spread_to_side<Num:Copy+RealField+Num+NormalCdfConsts<Marker>,const DIM:usize,Marker>(a:HToRef<GasCellSpreadToSideType<Num,DIM>>,edge_dir_vec:SVector<Num,DIM>,edge_len:Num,dt:Num)->MattersBasicStat<Num,DIM>{
+	todo!()
+}
+```
+*/
 
 /// for time dt, for ['MattersState'] with `volume`, to calculate how much [`Matters`] will cross the edge with `edge_len` and `edge_dir_vec` 
 pub fn gas_cell_spread_to_side<Num:Copy+RealField+num_traits::Num+NormalCdfConsts<Marker>,const DIM:usize,Marker>(a:HToRef<GasCellSpreadToSideType<Num,DIM>>,edge_dir_vec:SVector<Num,DIM>,edge_len:Num,dt:Num)->Delta<MattersBasicStat<Num,DIM>>{
@@ -341,7 +369,7 @@ pub fn calculate_matters_state_inplace<Num:RealField+Copy,const DIM:usize>(matte
 {
     let (mass,momentum,energy,vel,kinetic,internal,vel_var_sq,vel_var,vel_var_sq_1dir,vel_var_1dir,volume,density)=matters.into();
     vel.0=momentum.0/mass.0;
-    kinetic.0=  mass_momentum_2_kenetic(momentum.0,mass.0);//(momentum.0*momentum.0/mass.0) *NUMINV2;
+    *kinetic=  mass_momentum_2_kenetic(hlist![mass,momentum]);//(momentum.0*momentum.0/mass.0) *NUMINV2;
     internal.0=energy.0-kinetic.0;
     vel_var_sq.0=Num::p2()*internal.0/mass.0;
     vel_var.0=if vel_var_sq.0.is_negative(){
