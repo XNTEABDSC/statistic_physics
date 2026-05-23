@@ -18,4 +18,3 @@ num-traits = "0.2.19"
 derive_more = {version = "2.0.1",features = ["add","add_assign","not"]}
 nalgebra = "0.34.0"
 
-name_type_for_fn = {path = "../name_type_for_fn"}
