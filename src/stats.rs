@@ -45,3 +45,4 @@ pub struct VelVarSq1Dir<Num>(pub Num);
 pub struct VelVar1Dir<Num>(pub Num);
 
 //derive_add_traits!(VelVar1Dir);
+
