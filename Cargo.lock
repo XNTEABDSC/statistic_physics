@@ -329,6 +329,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "name_type_for_fn"
+version = "0.1.0"
+dependencies = [
+ "name_type_for_fn_proc_macro",
+ "single_fn_static",
+]
+
+[[package]]
+name = "name_type_for_fn_proc_macro"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "single_fn_static",
+ "syn",
+]
+
+[[package]]
 name = "num-bigint"
 version = "0.4.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -392,11 +410,13 @@ dependencies = [
  "fixed",
  "frunk",
  "nalgebra",
+ "name_type_for_fn",
  "num-traits",
  "rand",
  "simba",
  "typenum",
  "wacky_bag",
+ "wacky_bag_hlist",
 ]
 
 [[package]]
@@ -532,6 +552,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "single_fn_static"
+version = "0.1.0"
+
+[[package]]
 name = "statistic_physics"
 version = "0.1.0"
 dependencies = [
@@ -546,6 +570,7 @@ dependencies = [
  "rand",
  "simba",
  "wacky_bag",
+ "wacky_bag_hlist",
 ]
 
 [[package]]
@@ -581,6 +606,13 @@ dependencies = [
  "num-traits",
  "simba",
  "wacky_bag_macro",
+]
+
+[[package]]
+name = "wacky_bag_hlist"
+version = "0.1.0"
+dependencies = [
+ "frunk",
 ]
 
 [[package]]

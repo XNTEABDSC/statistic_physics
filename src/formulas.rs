@@ -4,7 +4,8 @@ use frunk::{HList, hlist, hlist_pat};
 use nalgebra::{Const, DefaultAllocator, DimName, SVector, allocator::Allocator};
 use physics_basic::{body::calculate_position_state, rotation::{AngularInertia, AngularMomentum, AngularVel, DimNameToSoDimName, DimNameToSoDimNameType, angular_kinetic_from_inertia_agv, angular_momentum_from_omega}, stats::*};
 use simba::scalar::RealField;
-use wacky_bag::{math::{normal_cdf::{NormalCdfConsts, normal_cdf}, normal_pdf::normal_pdf}, utils::{h_list_helpers::{HToMut, HToRef}, num_extend::NumExtends}};
+use wacky_bag::{math::{normal_cdf::{NormalCdfConsts, normal_cdf}, normal_pdf::normal_pdf}, utils::{num_extend::NumExtends}};
+use wacky_bag_hlist::h_list_helpers::{HToMut, HToRef};
 
 use crate::matters::MattersBasic;
 use crate::matters::MattersFull;
