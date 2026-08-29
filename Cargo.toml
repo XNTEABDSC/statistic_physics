@@ -12,7 +12,7 @@ wacky_bag_hlist = {path="../wacky_bag_hlist"}
 # wacky_bag_fixed = {path="../wacky_bag_fixed"}
 rand = "0.8.5"
 physics_basic = {path="../physics_basic"}
-frunk = "0.4.3"
+frunk = "0.5.0"
 lazy_static = "1.5.0"
 simba = {version = "0.9.1",features = ["partial_fixed_point_support"]}
 num-traits = "0.2.19"

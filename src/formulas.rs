@@ -2,7 +2,7 @@
 
 use frunk::{HList, hlist, hlist_pat};
 use nalgebra::{Const, DefaultAllocator, DimName, SVector, allocator::Allocator};
-use physics_basic::{body::calculate_position_state, rotation::{AngularInertia, AngularMomentum, AngularVel, DimNameToSoDimName, DimNameToSoDimNameType, angular_kinetic_from_inertia_agv, angular_momentum_from_omega}, stats::*};
+use physics_basic::{body::calculate_position_state, rotation::{AllocatorSq, AllocatorVM, AngularInertia, AngularMomentum, AngularVel, ConstDimToSoDimT, DimSquare, DimToSoDim, DimToSoDimT, angular_kinetic_from_inertia_agv, angular_momentum_from_omega}, stats::*};
 use simba::scalar::RealField;
 use wacky_bag::{math::{normal_cdf::{NormalCdfConsts, normal_cdf}, normal_pdf::normal_pdf}, utils::{num_extend::NumExtends}};
 use wacky_bag_hlist::h_list_helpers::{HToMut, HToRef};
@@ -224,23 +224,31 @@ pub fn interact_gas_cell_body_simple<Num:RealField+Copy,const DIM:usize>(
 	dt:Num
 )->(InteractGasCellBodyGridCellChange<Num,DIM>,InteractGasCellBodyBodyChange<Num,DIM>)
 	where 
-    Const<DIM>: DimNameToSoDimName + DimName,
-    DefaultAllocator: Allocator<DimNameToSoDimNameType<DIM>>
-        + Allocator<DimNameToSoDimNameType<DIM>, DimNameToSoDimNameType<DIM>>,
+    // Const<DIM>: DimToSoDim + DimName + DimSquare,
+	// DimToSoDimT<Const<DIM>>: DimSquare,
+    // DefaultAllocator: AllocateDimSqSoDimSq<Const<DIM>>,
+	Const<DIM>: DimName + DimToSoDim,
+	// ConstDimToSoDimT<DIM>:DimSquare,
+	DefaultAllocator:
+		AllocatorVM<ConstDimToSoDimT<DIM>>
+		+
+		// Allocator<Const<DIM>>
+		// AllocatorVMSq<Const<DIM>>
 {
-	
     let factor=
 		// *gc_m_mass / *gc_m_volume * *b_m_volume / *b_m_mass
 		gc_m_density.0 / b_m_mass.0
 		* half_life_period_factor_over_len * dt
 	;
-	let d_vel = *b_m_vel-*gc_m_vel;
-	let d_vel_fac = Vel(d_vel.0*factor);
+	// let awdawda:SVector<Num,DIM>=;
+	// let awdawdb:SVector<Num,DIM> = ;
+	let d_vel = b_m_vel.0-gc_m_vel.0; // DefaultAllocator:Allocator<Const<DIM>> causes this to error
+	let d_vel_fac = Vel(d_vel*factor);
 
 	let hlist_pat![d_momentum] = mass_vel_2_momentum(hlist![b_m_mass,&d_vel_fac]);
 	let hlist_pat![d_kinetic] = mass_vel_2_kinetic(hlist![b_m_mass,&d_vel_fac]);
 
-	let d_agv_fac = AngularVel(b_n_agv.0*factor);
+	let d_agv_fac = AngularVel(b_n_agv.0.clone()*factor);
 	let hlist_pat![d_ag_mom] = angular_momentum_from_omega(hlist![b_m_agi,&d_agv_fac]);
 	let hlist_pat![d_ag_kin] = angular_kinetic_from_inertia_agv(hlist![b_m_agi,&d_agv_fac]);
 
