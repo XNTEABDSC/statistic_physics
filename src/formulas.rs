@@ -1,8 +1,8 @@
 
 
 use frunk::{HList, hlist, hlist_pat};
-use nalgebra::{Const, DefaultAllocator, DimName, SVector, allocator::Allocator};
-use physics_basic::{body::calculate_position_state, rotation::{AllocatorSq, AllocatorVM, AngularInertia, AngularMomentum, AngularVel, ConstDimToSoDimT, DimSquare, DimToSoDim, DimToSoDimT, angular_kinetic_from_inertia_agv, angular_momentum_from_omega}, stats::*};
+use nalgebra::{Const, DefaultAllocator, DimName, SVector};
+use physics_basic::{body::calculate_position_state, rotation::{AllocatorVM, AngularInertia, AngularMomentum, AngularVel, ConstDimToSoDimT, DimToSoDim, angular_kinetic_from_inertia_agv, angular_momentum_from_omega}, stats::*};
 use simba::scalar::RealField;
 use wacky_bag::{math::{normal_cdf::{NormalCdfConsts, normal_cdf}, normal_pdf::normal_pdf}, utils::{num_extend::NumExtends}};
 use wacky_bag_hlist::h_list_helpers::{HToMut, HToRef};
@@ -249,8 +249,8 @@ pub fn interact_gas_cell_body_simple<Num:RealField+Copy,const DIM:usize>(
 	let hlist_pat![d_kinetic] = mass_vel_2_kinetic(hlist![b_m_mass,&d_vel_fac]);
 
 	let d_agv_fac = AngularVel(b_n_agv.0.clone()*factor);
-	let hlist_pat![d_ag_mom] = angular_momentum_from_omega(hlist![b_m_agi,&d_agv_fac]);
 	let hlist_pat![d_ag_kin] = angular_kinetic_from_inertia_agv(hlist![b_m_agi,&d_agv_fac]);
+	let hlist_pat![d_ag_mom] = angular_momentum_from_omega(hlist![b_m_agi,d_agv_fac]);
 
 	let d_vel_var_sq=*b_m_vel_var_sq-*gc_m_vel_var_sq;
 	let d_vel_var_sq_fac=VelVarSq(d_vel_var_sq.0*factor);
@@ -437,12 +437,13 @@ pub fn matters_state_by_vel<Num:RealField+Copy,const DIM:usize>(hlist_pat![mass,
 #[cfg(test)]
 mod tests{
 	use num_traits::{One, zero};
-use wacky_bag::structures::n_dim_array::dim_dir::DimDirIter;
+	use wacky_bag::structures::n_dim_array::dim_dir::DimDirIter;
 
 	use super::*;
 
 	type Num=simba::scalar::FixedI32F32;
 
+	#[allow(unused)]
 	const DIM:usize=2;
 	#[test]
 	pub fn bug_test(){
